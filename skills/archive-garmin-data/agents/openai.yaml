@@ -1,0 +1,12 @@
+interface:
+  display_name: Archive Garmin Data
+  short_description: Preserve complete rolling Garmin health snapshots
+  default_prompt: Use $archive-garmin-data to archive the complete current Garmin
+    data window.
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

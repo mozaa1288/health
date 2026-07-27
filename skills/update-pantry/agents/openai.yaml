@@ -1,0 +1,11 @@
+interface:
+  display_name: Update Pantry
+  short_description: Add groceries and pantry items from receipts, lists, or photos
+  default_prompt: Update my pantry from this receipt, list, or set of pantry photos.
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
