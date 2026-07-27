@@ -1,6 +1,18 @@
 # Personal Health Automation Skills
 
-A private, version-controlled home for the ChatGPT skills that operate the Google Drive health-data system.
+A private, version-controlled home for the ChatGPT and Claude Code skills that operate the Google Drive health-data system.
+
+## Install in Claude Code
+
+Add the marketplace and install the bundle:
+
+```text
+/plugin marketplace add mozaa1288/health
+/plugin install health-automation@mozaa-health
+/reload-plugins
+```
+
+The repository must be accessible through your GitHub authentication. Marketplace syncing can then keep the installed bundle current when the repository changes.
 
 ## Included skills
 
@@ -13,7 +25,7 @@ A private, version-controlled home for the ChatGPT skills that operate the Googl
 | `reconcile-daily-food` | Find explicit consumption statements that are missing from the food log. |
 | `update-pantry` | Update pantry inventory from receipts, lists, and pantry/fridge photos. |
 
-Each folder under `skills/` is self-contained and retains its `SKILL.md`, agent metadata, deterministic scripts, and reference contracts.
+Each folder under `skills/` is self-contained and retains its `SKILL.md`, agent metadata, deterministic scripts, and reference contracts. Claude installs all six as the `health-automation` plugin from the `mozaa-health` marketplace.
 
 ## Data architecture
 
@@ -35,7 +47,7 @@ Run all repository checks with:
 python scripts/validate_repo.py
 ```
 
-The validator checks required skill files, frontmatter names, Python syntax, generated artifacts, and all bundled `test_*.py` suites.
+The validator checks the Claude marketplace catalog, required skill files, frontmatter names, Python syntax, generated artifacts, and all bundled `test_*.py` suites.
 
 ## Privacy
 
