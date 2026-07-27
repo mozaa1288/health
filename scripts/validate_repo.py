@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -23,7 +24,39 @@ def fail(message: str) -> None:
     raise SystemExit(f"ERROR: {message}")
 
 
+def validate_marketplace() -> None:
+    path = ROOT / ".claude-plugin" / "marketplace.json"
+    if not path.is_file():
+        fail("missing .claude-plugin/marketplace.json")
+    try:
+        marketplace = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        fail(f"invalid marketplace JSON: {exc}")
+
+    if marketplace.get("name") != "mozaa-health":
+        fail("marketplace name must be mozaa-health")
+    plugins = marketplace.get("plugins")
+    if not isinstance(plugins, list) or len(plugins) != 1:
+        fail("marketplace must expose one health-automation bundle")
+    plugin = plugins[0]
+    if plugin.get("name") != "health-automation":
+        fail("plugin name must be health-automation")
+    if plugin.get("source") != "./" or plugin.get("strict") is not False:
+        fail("health-automation must use source './' with strict false")
+
+    expected_paths = {f"./skills/{name}" for name in SKILLS}
+    actual_paths = set(plugin.get("skills") or [])
+    if actual_paths != expected_paths:
+        missing = sorted(expected_paths - actual_paths)
+        extra = sorted(actual_paths - expected_paths)
+        fail(f"marketplace skill mismatch; missing={missing}, extra={extra}")
+    for relative in actual_paths:
+        if not (ROOT / relative.removeprefix("./") / "SKILL.md").is_file():
+            fail(f"marketplace path has no SKILL.md: {relative}")
+
+
 def main() -> int:
+    validate_marketplace()
     python_files: list[Path] = []
     tests: list[Path] = []
     for name in SKILLS:
@@ -55,7 +88,7 @@ def main() -> int:
             fail(f"tests failed: {test.relative_to(ROOT)}")
 
     print(
-        f"Validated {len(SKILLS)} skills, {len(python_files)} Python files, "
+        f"Validated marketplace, {len(SKILLS)} skills, {len(python_files)} Python files, "
         f"and {len(tests)} test suites."
     )
     return 0
