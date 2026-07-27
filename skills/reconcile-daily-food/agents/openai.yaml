@@ -1,0 +1,12 @@
+interface:
+  display_name: Reconcile Daily Food
+  short_description: Find and log missing food entries
+  default_prompt: "Use $reconcile-daily-food to reconcile today\u2019s food statements\
+    \ with my nutrition log."
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

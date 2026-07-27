@@ -1,0 +1,12 @@
+interface:
+  display_name: Garmin Pantry Meal Plan
+  short_description: Build validated pantry-aware weekly meal plans
+  default_prompt: "Use $garmin-pantry-meal-plan to build this week\u2019s validated\
+    \ meal plan and grocery list."
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

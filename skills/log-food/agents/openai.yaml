@@ -1,0 +1,11 @@
+interface:
+  display_name: "Log Food"
+  short_description: "Log meals with barcode and nutrition lookup"
+  default_prompt: "Use $log-food to log what I just ate."
+policy:
+  products:
+  - "chatgpt"
+  - "codex"
+  - "api"
+  - "atlas"
+  allow_implicit_invocation: true

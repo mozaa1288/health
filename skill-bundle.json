@@ -1,0 +1,18 @@
+{
+  "schema": "health-skill-bundle/v1",
+  "ported_at": "2026-07-26",
+  "skills": [
+    "archive-garmin-data",
+    "garmin-pantry-meal-plan",
+    "import-garmin-account-export",
+    "log-food",
+    "reconcile-daily-food",
+    "update-pantry"
+  ],
+  "source_of_truth": "Google Drive Health Data Registry",
+  "contains_health_records": false,
+  "notes": [
+    "Skill code and contracts only; no Garmin export or food-log records.",
+    "One consumption example was replaced with synthetic data during the GitHub port."
+  ]
+}

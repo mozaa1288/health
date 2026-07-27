@@ -1,0 +1,12 @@
+interface:
+  display_name: Import Garmin Account Export
+  short_description: Normalize Garmin account export history
+  default_prompt: Use $import-garmin-account-export to validate and import this Garmin
+    account export.
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
