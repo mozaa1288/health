@@ -15,6 +15,8 @@
   "contains_health_records": false,
   "notes": [
     "Skill code and contracts only; no Garmin export or food-log records.",
-    "Scripts are retained only for raw Garmin serialization, Garmin export normalization, meal-plan compilation, and food-log row compilation."
+    "The primary Garmin source is cron-synced garmin_YYYY-MM-DD.json files in the registered garmin-archive folder.",
+    "Validated Garmin account exports fill archive gaps; the live connector is same-day fallback only.",
+    "Scripts are retained only for optional Garmin response serialization, Garmin export normalization, meal-plan compilation, and food-log row compilation."
   ]
 }
