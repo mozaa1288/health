@@ -1,6 +1,6 @@
 interface:
   display_name: "Log Food"
-  short_description: "Log meals with barcode and nutrition lookup"
+  short_description: "Identify foods, choose matches, and log nutrition"
   default_prompt: "Use $log-food to log what I just ate."
 policy:
   products:
