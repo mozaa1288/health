@@ -1,8 +1,7 @@
 interface:
   display_name: Archive Garmin Data
-  short_description: Preserve complete rolling Garmin health snapshots
-  default_prompt: Use $archive-garmin-data to archive the complete current Garmin
-    data window.
+  short_description: Verify synced daily Garmin JSON archives
+  default_prompt: Use $archive-garmin-data to verify the latest synced Garmin daily archive files.
 policy:
   products:
   - chatgpt
