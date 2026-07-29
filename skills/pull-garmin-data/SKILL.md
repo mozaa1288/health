@@ -1,60 +1,36 @@
 ---
 name: pull-garmin-data
-description: Pull daily Garmin health and activity data into one raw JSON file per local date. Use on a trusted local machine with python-garminconnect access for daily refreshes, historical backfills, or repairing missing Garmin archive dates.
+description: Retrieve and validate Drive-synced daily Garmin health and activity archives. Use for recent Garmin data, date-range retrieval, archive coverage checks, or missing-date investigations.
 ---
 
 # Pull Garmin Data
 
-Run this workflow only on a trusted local machine that has the user's Garmin token store and permission to write the local archive folder. ChatGPT-hosted runtimes generally cannot access those credentials or local paths.
+Pull Garmin data from the Google Drive folder registered as `garmin-archive`.
 
-## Default behavior
+## Workflow
 
-1. Authenticate with the existing `python-garminconnect` token store using `garminconnect` 0.3.5 or newer. Keep the token store readable only by the local user.
-2. Refresh today and yesterday in `America/Los_Angeles`.
-3. Preserve one raw file per date:
+1. Resolve `garmin-archive` through the Health Data Registry and verify the registered Google Drive folder.
+2. Determine the requested dates in `America/Los_Angeles`. Default to today and yesterday when the user asks for the latest data without a range.
+3. Find files named:
 
 ```text
 garmin_YYYY-MM-DD.json
 ```
 
-4. Write files atomically so an interrupted pull cannot leave a truncated archive.
-5. Keep endpoint errors inline as `{"error": "..."}`. Missing or failed data is unknown, not zero.
-6. Never commit credentials, tokens, cookies, temporary files, or raw Garmin archive files to GitHub.
-7. Let Google Drive for desktop or a separate `rclone copy` task sync the completed JSON files. This skill pulls Garmin data; it does not manage cloud synchronization.
+4. For each date, use the newest valid file by timezone-aware `pulled_at`. Require the filename date to match the top-level `date`.
+5. Preserve and return the raw sections, including `stats`, `user_summary`, `sleep`, `heart_rate`, `stress`, `body_battery`, `steps`, `hrv`, `respiration`, `spo2`, `max_metrics`, `training_status`, `training_readiness`, `body_composition`, `weigh_ins`, `daily_weigh_ins`, and `activities`.
+6. Treat endpoint errors, missing sections, empty payloads, null fields, and missing dates as unavailable data—not zero.
+7. Report the files used, their `pulled_at` timestamps, available sections, endpoint failures, and any missing dates.
 
-## Run
+Do not require a Garmin account export or a live Garmin connection. Google Drive is the normal retrieval source.
 
-From this skill directory:
+## Local collector
+
+The included script is the upstream collector, not the normal ChatGPT retrieval path. Run it separately on a trusted local machine with `garminconnect` 0.3.5 or newer and the existing `~/.garminconnect` token store:
 
 ```bash
 python scripts/pull_garmin_data.py
+python scripts/pull_garmin_data.py --start-date 2024-07-29 --end-date 2026-07-28
 ```
 
-Useful options:
-
-```bash
-# Refresh the last seven dates
-python scripts/pull_garmin_data.py --days 7
-
-# Backfill an exact range
-python scripts/pull_garmin_data.py   --start-date 2024-07-29   --end-date 2026-07-28
-
-# Replace every existing file in a range
-python scripts/pull_garmin_data.py --days 30 --force
-```
-
-The output directory defaults to `%USERPROFILE%\Documents\Health\Daily_Archives` on Windows and can be overridden with `--output-dir` or `GARMIN_ARCHIVE_DIR`.
-
-For a large backfill, keep a nonzero `--delay-seconds` value and rerun dates that report endpoint failures rather than treating missing results as zero.
-
-## Validation
-
-For each written file verify:
-
-- valid JSON;
-- filename date equals top-level `date`;
-- timezone-aware `pulled_at`;
-- expected endpoint sections are present;
-- the file is nonempty.
-
-Report dates written, dates skipped, endpoint failures, and the output directory.
+The script atomically writes the daily files. Google Drive Desktop or a separate `rclone copy` task syncs them to the registered Drive folder. Never commit the token store, temporary files, or raw Garmin archives to GitHub.

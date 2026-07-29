@@ -14,7 +14,7 @@
   "contains_health_records": false,
   "notes": [
     "Skill code only; no Garmin archives, food-log rows, credentials, or tokens.",
-    "Garmin collection runs locally through pull-garmin-data and writes daily JSON archives.",
+    "The pull-garmin-data skill retrieves Drive-synced daily archives; its companion collector script runs locally.",
     "Deterministic scripts remain only for Garmin collection, meal-plan compilation, and food-log compilation."
   ]
 }

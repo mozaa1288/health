@@ -16,7 +16,7 @@ The repository contains exactly six verb–object skills:
 
 | Skill | Purpose |
 |---|---|
-| `pull-garmin-data` | Collect raw daily Garmin data on a trusted local machine. |
+| `pull-garmin-data` | Retrieve Drive-synced daily Garmin archives. |
 | `plan-meals` | Build, revise, and retrieve weekly meal plans and grocery lists. |
 | `log-food` | Record and review food that was actually consumed. |
 | `sync-food` | Add clear consumed meals that are missing from the Food Log. |
@@ -27,7 +27,7 @@ The repository contains exactly six verb–object skills:
 
 Google Drive is the health-data source of truth. Skills resolve authoritative Drive assets through the Health Data Registry before reading or writing.
 
-`pull-garmin-data` runs separately on a trusted machine with a maintained `garminconnect` release (version 0.3.5 or newer) and the existing `~/.garminconnect` token store. The token store must remain readable only by the local user. By default the collector refreshes today and yesterday, and it can backfill an explicit date range. It atomically writes one file per local date:
+The companion collector script runs separately on a trusted machine with a maintained `garminconnect` release (version 0.3.5 or newer) and the existing `~/.garminconnect` token store. The token store must remain readable only by the local user. By default the collector refreshes today and yesterday, and it can backfill an explicit date range. It atomically writes one file per local date:
 
 ```text
 garmin_YYYY-MM-DD.json
@@ -35,7 +35,7 @@ garmin_YYYY-MM-DD.json
 
 Each file includes `date`, timezone-aware `pulled_at`, and raw Garmin sections such as `stats`, `user_summary`, `sleep`, `heart_rate`, `stress`, `body_battery`, `steps`, `hrv`, `respiration`, `spo2`, `max_metrics`, `training_status`, `training_readiness`, `body_composition`, `weigh_ins`, `daily_weigh_ins`, and `activities`.
 
-Google Drive Desktop or a separate `rclone copy` task syncs the completed daily files into the registered `garmin-archive` folder. Garmin-consuming skills use the newest valid daily archive file for each date as their normal source. They do not require another Garmin workflow.
+Google Drive Desktop or a separate `rclone copy` task syncs the completed daily files into the registered `garmin-archive` folder. `pull-garmin-data` and other Garmin-consuming skills retrieve the newest valid daily archive file for each date from that Drive folder. They do not require another Garmin workflow.
 
 Raw endpoint responses are preserved. Endpoint failures remain inline as `{"error": "..."}`. Missing files, failed sections, empty payloads, and null fields are unavailable data—never zero.
 

@@ -1,8 +1,11 @@
 interface:
   display_name: "Pull Garmin Data"
-  short_description: "Pull daily Garmin data into local JSON archives"
-  default_prompt: "Use $pull-garmin-data to refresh my local Garmin daily archives."
+  short_description: "Retrieve daily Garmin archives from Google Drive"
+  default_prompt: "Use $pull-garmin-data to retrieve my latest Garmin data from Google Drive."
 policy:
   products:
+  - "chatgpt"
   - "codex"
-  allow_implicit_invocation: false
+  - "api"
+  - "atlas"
+  allow_implicit_invocation: true
