@@ -36,7 +36,13 @@ Files are named `garmin_YYYY-MM-DD.json`, one per local date.
    download every candidate just to read its timestamp. Drive `modifiedTime` is
    a usable tiebreaker but `pulled_at` wins where the two disagree.
 
-4. **Decode and validate** with the bundled reader, which accepts the raw
+4. **Download to disk, not into context.** These archives are 400–500 KB. Tools
+   that return file *content* cap their output and will hand back truncated JSON.
+   Save the file to the working directory and let the scripts read it from disk.
+   Never paste an archive's content through a content-returning tool and then
+   parse what came back.
+
+5. **Decode and validate** with the bundled reader, which accepts the raw
    archive, the Drive tool-result envelope, or the inner base64 object without
    any manual unwrapping:
 
@@ -53,7 +59,7 @@ Files are named `garmin_YYYY-MM-DD.json`, one per local date.
 
    Exit code is `1` when any file has a fatal problem, `0` otherwise.
 
-5. **Report** with the formatter, which emits plain Markdown — tables and text
+6. **Report** with the formatter, which emits plain Markdown — tables and text
    only, so it pastes natively into ChatGPT, Gemini, Slack, or Notion with no
    rendering layer:
 
@@ -121,6 +127,22 @@ reporting a same-day pull rather than presenting partial totals as final.
 **Known discrepancy.** Archives currently in Drive have a naive (offset-free)
 `pulled_at`, which the collector's own validator would flag. The reader treats
 this as a warning, not a failure. Do not re-pull over it.
+
+## Truncated reads
+
+A truncated download does not look like an error — it looks like empty sections,
+which under the table above means "Garmin had nothing." That is the one failure
+mode that silently corrupts a report: the day's real numbers get published as
+absences, and whatever reads the report fills the gaps on its own.
+
+Both scripts guard against it. If any of `stats`, `sleep`, `heart_rate`,
+`stress`, or `steps` is empty — or five or more sections are empty at once — the
+reader raises `SUSPECTED TRUNCATED READ` and the formatter withholds the report
+entirely rather than rendering a plausible-looking one.
+
+When that fires, re-download the file to disk and re-run. Do not work around it
+by reporting the sections as unavailable. `--allow-partial` exists for
+inspection only and will misreport data.
 
 ## Local collector
 
