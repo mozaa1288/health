@@ -53,8 +53,35 @@ Files are named `garmin_YYYY-MM-DD.json`, one per local date.
 
    Exit code is `1` when any file has a fatal problem, `0` otherwise.
 
-5. **Report** the files used, their `pulled_at` timestamps, unavailable sections,
-   endpoint failures, and any dates with no file at all.
+5. **Report** with the formatter, which emits plain Markdown — tables and text
+   only, so it pastes natively into ChatGPT, Gemini, Slack, or Notion with no
+   rendering layer:
+
+   ```bash
+   python scripts/format_garmin_markdown.py <files>            # to stdout
+   python scripts/format_garmin_markdown.py <files> -o day.md  # to a file
+   python scripts/format_garmin_markdown.py <files> --no-traces
+   ```
+
+   Paste its output directly into the reply. Do not build an HTML page, an
+   artifact, or a chart image — the report has to survive being copied into
+   another assistant.
+
+## What the report contains
+
+- **Comparison table** across days (only when more than one day is pulled).
+- **Through the day** — one row per channel (body battery, heart rate, stress,
+  steps), drawn with block characters at half-hour resolution and split into
+  four six-hour columns so time position is readable without a monospace font.
+  `·` marks a half hour with no samples. The Range column reports true sample
+  extremes, not bucket averages, so smoothing never hides a real peak.
+- **Sleep** — window plus stage split with durations and percentages.
+- **Activities** — name, type, duration, distance.
+- **Provenance line** — source file, `pulled_at`, and unavailable sections.
+  Keep this. It is how the reader knows an absence was an absence.
+
+Partial same-day pulls are labeled with the local sync time at the top of the
+day's section.
 
 ## Reading the payload
 
@@ -82,7 +109,8 @@ absence of data:
 | `null` / key absent | Section missing. Report as a data problem. |
 | Nested `null` fields | Metric not recorded that day. Not zero. |
 
-Never render an unavailable value as `0`. `training_readiness` is routinely
+Never render an unavailable value as `0`, and never as a zero-height bar in the
+trace rows — the formatter uses `·` for that. `training_readiness` is routinely
 empty, and `max_metrics` is empty on days with no qualifying activity — neither
 is an error.
 
