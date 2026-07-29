@@ -1,80 +1,52 @@
-# `plan.json` Structure
+# Meal-plan compiler input
 
-Use this shape as the compiler input. Values below illustrate structure only.
+Create `plan.json` with four top-level sections:
 
 ```json
 {
   "nutrition_database": {
-    "drive_file_id": "1tFqCTo50otb-nuRuy1Xt7yQWI3iddiLM",
+    "drive_file_id": "registered canonical-nutrition Drive ID",
     "title": "nutrition_corrected.csv",
-    "expected_sha256": "optional-current-hash",
+    "expected_sha256": "current verified hash",
     "id_column": "Unnamed: 0",
     "name_column": "name",
     "serving_column": "serving_size [g]"
   },
-  "produce_buffer_pct": 3,
-  "meals": [
-    {
-      "id": "2026-07-27-lunch",
-      "date": "2026-07-27",
-      "name": "Example bowl",
-      "ingredients": [
-        {
-          "ingredient": "Quinoa",
-          "canonical_name": "quinoa",
-          "quantity": 80,
-          "unit": "g",
-          "nutrition_grams_total": 80,
-          "nutrition_row_id": 443,
-          "nutrition_match_type": "exact",
-          "nutrition_match_note": "Track dry grams before cooking."
-        }
-      ]
-    }
-  ],
-  "inventory": {
-    "quinoa": {
-      "canonical_unit": "g",
-      "available_amount": 120,
-      "status": "confirmed",
-      "source": "Pantry Inventory",
-      "last_confirmed": "2026-07-26"
-    }
-  },
-  "packages": {
-    "quinoa": {
-      "canonical_unit": "g",
-      "package_size": 454,
-      "category": "Grains",
-      "purchase_label": "Quinoa, dry",
-      "loose_produce": false
-    }
-  }
+  "meals": [],
+  "inventory": {},
+  "packages": {}
 }
 ```
 
-## Ingredient requirements
+## Meals
 
-Each ingredient requires:
+Each meal needs a unique `id`, local `date`, `name`, and quantified `ingredients`.
 
-- `ingredient`
-- `canonical_name`
-- `quantity`
-- `unit`
-- `nutrition_grams_total` or an explicit canonical conversion sufficient to derive edible grams
-- `nutrition_row_id` or an unambiguous `nutrition_name`
-- `nutrition_match_type` of `exact` or `proxy`
-- `nutrition_match_note` for every proxy
+Each ingredient needs:
 
-Use `canonical_amount_per_unit` and `canonical_unit` when the recipe unit cannot be converted directly. Use `nutrition_grams_per_canonical_unit` for repeatable count-to-gram conversion.
+- `ingredient` and normalized `canonical_name`;
+- `quantity` and canonical `unit` (`g`, `ml`, or `count`);
+- `nutrition_grams_total` or a complete count-to-gram conversion;
+- `nutrition_row_id` or one unique `nutrition_name`;
+- `nutrition_match_type`: `exact` or `proxy`;
+- `nutrition_match_note` for every proxy.
 
-Do not add a `macros` object to a meal. The compiler rejects manual macros.
+Do not include hand-entered meal macros. The compiler calculates nutrition from the CSV.
 
-Set `pantry_on_hand: true` only for items intentionally excluded from grocery reconciliation, such as water or a non-purchased pantry seasoning. Do not use it to bypass the inventory model for ordinary recipe ingredients.
+## Inventory
 
-## Package requirements
+Key inventory by canonical ingredient name. Each entry needs:
 
-Every ingredient with a net shortfall requires package metadata:
+- `canonical_unit`;
+- `available_amount`;
+- `status`: `confirmed`, `projected`, or a non-eligible status;
+- `source` and relevant confirmation date.
+
+Only confirmed or explicitly projected amounts may be subtracted.
+
+## Packages
+
+Every ingredient with a grocery shortfall needs:
 
 - compatible `canonical_unit`;
 - positive `package_size`;
@@ -82,4 +54,4 @@ Every ingredient with a net shortfall requires package metadata:
 - `purchase_label`;
 - `loose_produce` boolean.
 
-The compiler aggregates exact recipe demand, subtracts eligible inventory, applies any allowed produce buffer, and then rounds to package size.
+The compiler aggregates recipe demand, subtracts eligible inventory, applies the configured produce buffer, and rounds purchases to package size.
