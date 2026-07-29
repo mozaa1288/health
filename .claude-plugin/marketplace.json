@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "mozaa-health",
-  "version": "1.0.0",
-  "description": "Personal health automation skills backed by a governed Google Drive data system",
+  "version": "1.1.0",
+  "description": "Personal health workflows backed by a governed Google Drive data system",
   "owner": {
     "name": "mozaa1288",
     "url": "https://github.com/mozaa1288"
@@ -11,8 +11,8 @@
     {
       "name": "health-automation",
       "displayName": "Personal Health Automation",
-      "version": "1.0.0",
-      "description": "Garmin archiving and imports, pantry-aware meal planning, food logging and reconciliation, and receipt/list/photo pantry updates",
+      "version": "1.1.0",
+      "description": "Garmin archiving and imports, meal planning, food logging and reconciliation, pantry updates, and next-meal recommendations",
       "author": {
         "name": "mozaa1288"
       },
@@ -25,7 +25,8 @@
         "./skills/garmin-pantry-meal-plan",
         "./skills/log-food",
         "./skills/reconcile-daily-food",
-        "./skills/update-pantry"
+        "./skills/update-pantry",
+        "./skills/recommend-next-meal"
       ],
       "homepage": "https://github.com/mozaa1288/health"
     }
