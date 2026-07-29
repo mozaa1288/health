@@ -1,10 +1,8 @@
 # Personal Health Automation Skills
 
-A private, version-controlled home for the ChatGPT and Claude Code skills that operate the Google Drive health-data system.
+A private, version-controlled set of ChatGPT and Claude Code workflows for the Google Drive health-data system.
 
 ## Install in Claude Code
-
-Add the marketplace and install the bundle:
 
 ```text
 /plugin marketplace add mozaa1288/health
@@ -12,43 +10,49 @@ Add the marketplace and install the bundle:
 /reload-plugins
 ```
 
-The repository must be accessible through your GitHub authentication. Marketplace syncing can then keep the installed bundle current when the repository changes.
+The private repository must be available through GitHub authentication.
 
 ## Included skills
 
 | Skill | Purpose |
 |---|---|
-| `archive-garmin-data` | Archive connected Garmin data into append-only Drive snapshots. |
-| `import-garmin-account-export` | Validate and normalize Garmin account export ZIPs. |
-| `garmin-pantry-meal-plan` | Produce Garmin-aware, pantry-aware weekly meal plans and grocery lists. |
-| `log-food` | Add consumed food to the authoritative nutrition log. |
-| `reconcile-daily-food` | Find explicit consumption statements that are missing from the food log. |
-| `update-pantry` | Update pantry inventory from receipts, lists, and pantry/fridge photos. |
+| `archive-garmin-data` | Preserve complete rolling Garmin responses in append-only Drive snapshots. |
+| `import-garmin-account-export` | Validate and normalize historical Garmin export ZIPs. |
+| `garmin-pantry-meal-plan` | Build Garmin-aware weekly meal plans and grocery lists. |
+| `log-food` | Record and review actual food consumption. |
+| `reconcile-daily-food` | Find clear consumed meals that are missing from the food log. |
+| `recommend-next-meal` | Recommend a practical next meal from today's log, plan, and pantry. |
+| `update-pantry` | Update pantry inventory from receipts, lists, photos, and corrections. |
 
-Each folder under `skills/` is self-contained and retains its `SKILL.md`, agent metadata, deterministic scripts, and reference contracts. Claude installs all six as the `health-automation` plugin from the `mozaa-health` marketplace.
+## Design
 
-## Data architecture
+Google Drive remains the source of truth. Skills resolve authoritative assets through the Health Data Registry before reading or writing.
 
-The skills resolve assets through the Google Drive **Health Data Registry** before reading or writing. Operational state remains in Drive; this repository contains workflow definitions and code, not exported health records.
+The repository deliberately keeps scripts only where they add real value:
+
+- raw Garmin response serialization;
+- Garmin export validation and normalization;
+- weekly meal-plan nutrition and grocery compilation;
+- Food Log row and nutrition compilation.
+
+Reconciliation, pantry updates, and meal recommendations use direct, conservative workflows instead of intermediate JSON contracts and ranking scripts.
 
 ```mermaid
 flowchart TD
-    A["User, image, or automation"] --> B["Health skill"]
-    B --> C["Deterministic validator/compiler"]
-    C --> D["Health Data Registry"]
-    D --> E["Drive source-of-truth asset"]
+    A["User or automation"] --> B["Health skill"]
+    B --> C["Health Data Registry"]
+    C --> D["Drive source-of-truth asset"]
+    B --> E["Deterministic helper only when needed"]
 ```
 
 ## Validation
-
-Run all repository checks with:
 
 ```bash
 python scripts/validate_repo.py
 ```
 
-The validator checks the Claude marketplace catalog, required skill files, frontmatter names, Python syntax, generated artifacts, and all bundled `test_*.py` suites.
+The validator checks the marketplace catalog, skill names, Python syntax, generated artifacts, and any bundled test files.
 
 ## Privacy
 
-The repository contains Drive file IDs and personalized workflow preferences, but no passwords, API keys, OAuth tokens, or health-record exports. Keep the repository private unless those identifiers and preferences are deliberately generalized.
+The repository contains workflow instructions, code, Drive identifiers, and personal preferences, but no passwords, OAuth tokens, Garmin exports, food-log rows, receipt images, or other health-record exports. Keep it private unless those identifiers and preferences are deliberately generalized.
