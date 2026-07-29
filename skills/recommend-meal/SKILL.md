@@ -7,12 +7,24 @@ description: Recommend the next practical meal or snack using today's Food Log, 
 
 Give one practical recommendation for the user's next meal or snack. This workflow is read-only: do not log food or change pantry inventory.
 
+## Where the files live
+
+Resolved once from the `Health Data Registry` (`Health/00 System & Governance/Health Data Registry`, Drive ID `1AHvwyDzlhznRFvAry5Tqj37Ol9w5HOOhES4htrqoXjE`, `Assets` tab) — use these IDs directly instead of re-reading the registry on every run:
+
+| Asset key | Name | Drive ID | Kind |
+|---|---|---|---|
+| `food-log` | Food Consumption Log | `12Exzl-EZWxkiN0cd9XafE9R7a_MBoNiZuio46deANnQ` | Google Sheet |
+| `pantry-tracker` | Pantry & Fridge Inventory Tracker | `1PfVg-73Ksgi6YRVJ30K7-m6UHCJBE29E0u43FbbyKmw` | Google Sheet |
+| `weekly-plans` | Weekly Meal Plans | `15snr42midAQ4CqajszQckpztMsD5Ppmh` | Folder |
+
+Only re-resolve an asset through the live registry if opening its Drive ID fails, comes back empty, or its name/kind no longer matches — that means the asset moved.
+
 ## Workflow
 
 1. Resolve the current date and time in `America/Los_Angeles`.
-2. Read today's active entries from the registered Food Consumption Log.
-3. Read the validated weekly plan covering today, when one exists.
-4. Read enough of the registered pantry tracker to confirm likely ingredient availability.
+2. Read today's active entries from the `food-log` sheet above.
+3. Read the validated weekly plan covering today from the `weekly-plans` folder above (the `*_compiled_plan.json` for the relevant week has per-meal macros including sodium).
+4. Read enough of the `pantry-tracker` sheet above to confirm likely ingredient availability.
 5. Compare today's known intake with the planned meals and daily totals.
 6. Prefer the next unconsumed planned meal when it still makes sense. Otherwise make a simple adjustment or suggest an easy pantry-based alternative.
 7. Use the weekly plan or canonical nutrition source for approximate macros. Blank food-log nutrition is unknown, not zero.
