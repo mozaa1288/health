@@ -1,9 +1,9 @@
 ---
-name: recommend-next-meal
-description: Recommend what the user should eat next using today's food log, the current weekly meal plan, and pantry availability. Use for questions such as “what should I eat next?”, “what should I have for dinner?”, or “what snack fits today?”
+name: recommend-meal
+description: Recommend the next practical meal or snack using today's Food Log, current validated meal plan, and available pantry items.
 ---
 
-# Recommend Next Meal
+# Recommend Meal
 
 Give one practical recommendation for the user's next meal or snack. This workflow is read-only: do not log food or change pantry inventory.
 
@@ -16,6 +16,7 @@ Give one practical recommendation for the user's next meal or snack. This workfl
 5. Compare today's known intake with the planned meals and daily totals.
 6. Prefer the next unconsumed planned meal when it still makes sense. Otherwise make a simple adjustment or suggest an easy pantry-based alternative.
 7. Use the weekly plan or canonical nutrition source for approximate macros. Blank food-log nutrition is unknown, not zero.
+8. Treat fiber as a floor and sodium as an upper guardrail. Do not recommend food merely to increase sodium.
 
 Follow the user's standing meal-plan preferences: one person, vegetarian base, no mushrooms or cucumber, and practical ingredients they commonly eat.
 

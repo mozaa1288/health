@@ -1,0 +1,8 @@
+interface:
+  display_name: "Pull Garmin Data"
+  short_description: "Pull daily Garmin data into local JSON archives"
+  default_prompt: "Use $pull-garmin-data to refresh my local Garmin daily archives."
+policy:
+  products:
+  - "codex"
+  allow_implicit_invocation: false

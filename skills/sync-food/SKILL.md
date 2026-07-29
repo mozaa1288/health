@@ -1,9 +1,9 @@
 ---
-name: reconcile-daily-food
-description: Find direct food-consumption statements that are missing from the authoritative Food Consumption Log and add only clear missing entries through log-food. Use for daily catch-up, scheduled reconciliation, or checking whether anything was missed.
+name: sync-food
+description: Check recent consumption statements against the Food Log and add only clear missing meals through the log-food workflow.
 ---
 
-# Reconcile Daily Food
+# Sync Food
 
 Compare direct user statements about consumed food with the Food Consumption Log. Default to the current `America/Los_Angeles` date unless another date is specified.
 

@@ -1,1 +1,9 @@
-__pycache__/\n*.py[cod]\n.DS_Store\n.env\n.venv/\n
+__pycache__/
+*.py[cod]
+.DS_Store
+.env
+.env.*
+.venv/
+.garminconnect/
+Daily_Archives/
+garmin_????-??-??.json*

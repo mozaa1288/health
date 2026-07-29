@@ -1,6 +1,6 @@
 # Personal Health Automation Skills
 
-A private, version-controlled set of ChatGPT and Claude Code workflows for the Google Drive health-data system.
+A version-controlled set of health workflows backed by the Google Drive health-data system.
 
 ## Install in Claude Code
 
@@ -10,60 +10,44 @@ A private, version-controlled set of ChatGPT and Claude Code workflows for the G
 /reload-plugins
 ```
 
-The private repository must be available through GitHub authentication.
+## Skills
 
-## Included skills
+The repository contains exactly six verb–object skills:
 
 | Skill | Purpose |
 |---|---|
-| `archive-garmin-data` | Verify and use the cron-synced per-day Garmin JSON archive. |
-| `import-garmin-account-export` | Validate Garmin export ZIPs for supplemental gap-fill history. |
-| `garmin-pantry-meal-plan` | Build Garmin-aware weekly meal plans and grocery lists. |
-| `log-food` | Record and review actual food consumption. |
-| `reconcile-daily-food` | Find clear consumed meals that are missing from the food log. |
-| `recommend-next-meal` | Recommend a practical next meal from today's log, plan, and pantry. |
-| `update-pantry` | Update pantry inventory from receipts, lists, photos, and corrections. |
+| `pull-garmin-data` | Collect raw daily Garmin data on a trusted local machine. |
+| `plan-meals` | Build, revise, and retrieve weekly meal plans and grocery lists. |
+| `log-food` | Record and review food that was actually consumed. |
+| `sync-food` | Add clear consumed meals that are missing from the Food Log. |
+| `recommend-meal` | Recommend a practical next meal or snack. |
+| `update-pantry` | Update pantry inventory from receipts, lists, photos, or corrections. |
 
-## Garmin data architecture
+## Data architecture
 
-The primary Garmin source is the user's external `python-garminconnect` collector. It creates one raw file per local date:
+Google Drive is the health-data source of truth. Skills resolve authoritative Drive assets through the Health Data Registry before reading or writing.
+
+`pull-garmin-data` runs separately on a trusted machine with a maintained `garminconnect` release (version 0.3.5 or newer) and the existing `~/.garminconnect` token store. The token store must remain readable only by the local user. By default the collector refreshes today and yesterday, and it can backfill an explicit date range. It atomically writes one file per local date:
 
 ```text
 garmin_YYYY-MM-DD.json
 ```
 
-Those files are synced into the Google Drive folder registered as `garmin-archive`. Skills read them directly and validate the filename date, top-level `date`, and `pulled_at` timestamp.
+Each file includes `date`, timezone-aware `pulled_at`, and raw Garmin sections such as `stats`, `user_summary`, `sleep`, `heart_rate`, `stress`, `body_battery`, `steps`, `hrv`, `respiration`, `spo2`, `max_metrics`, `training_status`, `training_readiness`, `body_composition`, `weigh_ins`, `daily_weigh_ins`, and `activities`.
 
-Garmin source precedence is:
+Google Drive Desktop or a separate `rclone copy` task syncs the completed daily files into the registered `garmin-archive` folder. Garmin-consuming skills use the newest valid daily archive file for each date as their normal source. They do not require another Garmin workflow.
 
-1. Synced per-day JSON files in `garmin-archive`.
-2. A validated Garmin account export only to fill missing dates or datasets.
-3. The live Garmin connector only for explicit same-day freshness when the daily file has not synced.
+Raw endpoint responses are preserved. Endpoint failures remain inline as `{"error": "..."}`. Missing files, failed sections, empty payloads, and null fields are unavailable data—never zero.
 
-Missing files, empty responses, and endpoint errors remain unknown and are never converted to zero.
+## Retained scripts
 
-## Design
+Scripts remain only where deterministic code provides clear value:
 
-Google Drive remains the source of truth. Skills resolve authoritative assets through the Health Data Registry before reading or writing.
-
-The repository deliberately keeps scripts only where they add real value:
-
-- optional raw Garmin connector-response serialization;
-- Garmin export validation and cross-source normalization;
-- weekly meal-plan nutrition and grocery compilation;
+- local Garmin collection and atomic archive writing;
+- meal-plan nutrition, pantry allocation, and grocery compilation;
 - Food Log row and nutrition compilation.
 
-Reconciliation, pantry updates, and meal recommendations use direct, conservative workflows instead of intermediate JSON contracts and ranking scripts.
-
-```mermaid
-flowchart TD
-    A["Laptop Garmin collector"] --> B["Daily JSON files"]
-    B --> C["Google Drive garmin-archive"]
-    C --> D["Health skills"]
-    E["Account export"] -->|gap fill only| D
-    F["Live Garmin"] -->|same-day fallback| D
-    D --> G["Other registered Drive assets"]
-```
+Food synchronization, pantry updates, and meal recommendations use direct, conservative workflows instead of intermediate planning or ranking scripts.
 
 ## Validation
 
@@ -71,8 +55,8 @@ flowchart TD
 python scripts/validate_repo.py
 ```
 
-The validator checks the marketplace catalog, skill names, Python syntax, generated artifacts, and any bundled test files.
+The validator checks the exact skill catalogs and folders, `SKILL.md` names, relative links, Python syntax, generated artifacts, and bundled tests.
 
 ## Privacy
 
-The repository contains workflow instructions, code, Drive identifiers, and personal preferences, but no passwords, OAuth tokens, Garmin exports, food-log rows, receipt images, or other health-record exports. Keep it private unless those identifiers and preferences are deliberately generalized.
+Never commit Garmin credentials, tokens, cookies, daily Garmin archives, Food Log exports, receipt images, or other health records. This repository is for workflow instructions, code, schemas, and non-secret identifiers only.
