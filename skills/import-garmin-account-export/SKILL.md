@@ -1,11 +1,11 @@
 ---
 name: import-garmin-account-export
-description: Validate and normalize a Garmin account-data export ZIP into an immutable historical snapshot in Google Drive. Use for historical Garmin imports, backfills, or refreshing the registered account-export baseline.
+description: Validate and normalize a Garmin account-data export ZIP into an immutable historical snapshot in Google Drive. Use for historical Garmin imports, backfills, or filling gaps not covered by the synced daily Garmin archive.
 ---
 
 # Import Garmin Account Export
 
-Convert a Garmin export ZIP into one preserved raw snapshot plus normalized JSONL datasets for downstream health workflows.
+Convert a Garmin export ZIP into one preserved raw snapshot plus normalized JSONL datasets for fallback historical coverage.
 
 ## Import workflow
 
@@ -35,10 +35,20 @@ manifest.json
 7. Upload the normalized files, catalog, and manifest, then verify their names, parents, sizes, and hashes where available.
 8. Register the snapshot and report dataset counts, date coverage, skipped data, conflicts, and anomalies.
 
-## Using imported history
+## Source role
 
-Use the newest fully validated snapshot as the historical baseline. Verify the manifest and listed hashes before reading normalized files.
+The synced `garmin_YYYY-MM-DD.json` files in `garmin-archive` are the default Garmin history. An account export is supplemental and may fill only dates or datasets that are absent or unusable in the daily archive.
 
-For newer daily-archive or live Garmin payloads, run `scripts/normalize_garmin_records.py`, merge coverage per dataset, and deduplicate only exact `(stable_id, canonical_record_sha256)` pairs. Preserve conflicting hashes and legitimate multiple activities. Missing data remains unknown, and future-dated anomalies are excluded from coverage and planning.
+For a date and dataset with a valid daily archive payload, prefer the daily file. Do not replace it merely because an export record is available.
 
-Keep the historical export separate from the append-only daily Garmin archive.
+When combining sources:
+
+1. Verify the export manifest and listed hashes.
+2. Extract the relevant top-level dataset from each daily file.
+3. Run `scripts/normalize_garmin_records.py` separately for each compatible dataset payload.
+4. Deduplicate only exact `(stable_id, canonical_record_sha256)` pairs.
+5. Preserve conflicting hashes and legitimate multiple activities.
+6. Treat missing data and `{ "error": ... }` payloads as unknown.
+7. Exclude future-dated anomalies from coverage and planning.
+
+Keep imported exports separate from the per-day Garmin archive.
