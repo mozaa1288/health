@@ -1,34 +1,30 @@
 #!/usr/bin/env python3
-"""Decode, validate, and summarize Garmin daily archives pulled from Google Drive.
-
-This is the *retrieval-side* helper. It handles the shapes a Drive download
-actually arrives in, so the retrieval path is one command instead of ad hoc
-JSON unwrapping.
-
-Accepted inputs (auto-detected per file):
-  1. A raw archive:            {"date": ..., "pulled_at": ..., "stats": {...}, ...}
-  2. A Drive tool-result file: [{"type": "text", "text": "{\"content\": \"<base64>\"}"}]
-  3. The inner Drive object:   {"id": ..., "title": ..., "content": "<base64>"}
-
-Usage:
-    python read_garmin_archive.py FILE [FILE ...]
-    python read_garmin_archive.py FILE --json          # machine-readable summary
-    python read_garmin_archive.py FILE --section sleep # dump one raw section
-    python read_garmin_archive.py FILE --decode-to DIR # write decoded raw JSON
-
-Exit codes: 0 = all files valid, 1 = one or more validation problems.
-"""
+"""Pull Garmin daily data into one raw JSON archive per local date."""
 
 from __future__ import annotations
 
 import argparse
-import base64
+import datetime as dt
 import json
+import os
 import sys
+import time
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
-SECTIONS = (
+from garminconnect import Garmin
+
+LOCAL_ZONE = ZoneInfo("America/Los_Angeles")
+DEFAULT_TOKEN_DIR = Path.home() / ".garminconnect"
+DEFAULT_OUTPUT_DIR = Path(
+    os.environ.get(
+        "GARMIN_ARCHIVE_DIR",
+        str(Path.home() / "Documents" / "Health" / "Daily_Archives"),
+    )
+)
+
+ENDPOINT_NAMES = (
     "stats",
     "user_summary",
     "sleep",
@@ -48,266 +44,225 @@ SECTIONS = (
     "activities",
 )
 
-KG_PER_GRAM = 0.001
-LB_PER_KG = 2.2046226218
-MI_PER_M = 0.000621371
 
-
-# --------------------------------------------------------------------------- #
-# Loading
-# --------------------------------------------------------------------------- #
-
-def load_archive(path: Path) -> dict[str, Any]:
-    """Return the raw Garmin archive dict, unwrapping Drive envelopes as needed."""
-    text = path.read_text(encoding="utf-8", errors="replace")
-    obj = json.loads(text)
-
-    # Shape 2: Drive tool-result list of content blocks.
-    if isinstance(obj, list):
-        blocks = [b for b in obj if isinstance(b, dict) and b.get("type") == "text"]
-        if not blocks:
-            raise ValueError(f"{path.name}: list payload has no text block")
-        obj = json.loads(blocks[0]["text"])
-
-    if not isinstance(obj, dict):
-        raise ValueError(f"{path.name}: unrecognized payload type {type(obj).__name__}")
-
-    # Shape 3: Drive file object carrying base64 content.
-    if "content" in obj and "date" not in obj:
-        obj = json.loads(base64.b64decode(obj["content"]))
-
-    if not isinstance(obj, dict) or "date" not in obj:
-        raise ValueError(f"{path.name}: decoded payload is not a Garmin archive")
-
-    return obj
-
-
-# --------------------------------------------------------------------------- #
-# Validation
-# --------------------------------------------------------------------------- #
-
-def classify_section(value: Any) -> str:
-    """One of: error, missing, empty, present."""
-    if value is None:
-        return "missing"
-    if isinstance(value, dict) and "error" in value:
-        return "error"
-    if isinstance(value, (list, dict)) and len(value) == 0:
-        return "empty"
-    return "present"
-
-
-def validate(archive: dict[str, Any], path: Path) -> dict[str, Any]:
-    problems: list[str] = []
-
-    stem_date = path.stem.replace("garmin_", "")
-    file_date = archive.get("date")
-    if stem_date and stem_date != file_date and not path.stem.startswith("Google_"):
-        problems.append(f"filename date {stem_date!r} != top-level date {file_date!r}")
-
-    pulled_at = archive.get("pulled_at")
-    tz_aware = False
+def safe_fetch_method(
+    garmin: Garmin, method_name: str, *args: Any, **kwargs: Any
+) -> Any:
     try:
-        import datetime as dt
+        func = getattr(garmin, method_name)
+        return func(*args, **kwargs)
+    except Exception as exc:  # Garmin endpoint failures must remain in the archive.
+        return {"error": f"{type(exc).__name__}: {exc}"}
 
-        parsed = dt.datetime.fromisoformat(str(pulled_at))
-        tz_aware = parsed.utcoffset() is not None
-    except (TypeError, ValueError):
-        problems.append(f"pulled_at is not ISO datetime: {pulled_at!r}")
-    if pulled_at and not tz_aware:
-        # Warn, do not fail: archives in Drive are currently naive local time.
-        problems.append(f"WARN pulled_at is not timezone-aware: {pulled_at!r}")
 
-    status = {name: classify_section(archive.get(name)) for name in SECTIONS}
-    for name, state in status.items():
-        if state == "error":
-            problems.append(f"endpoint failure in {name}: {archive[name]['error']}")
-        elif state == "missing":
-            problems.append(f"missing section: {name}")
+def parse_date(value: str) -> dt.date:
+    try:
+        return dt.date.fromisoformat(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"invalid ISO date: {value}") from exc
 
+
+def date_range(start: dt.date, end: dt.date):
+    current = start
+    while current <= end:
+        yield current
+        current += dt.timedelta(days=1)
+
+
+def build_payload(garmin: Garmin, date_value: dt.date) -> dict[str, Any]:
+    date_str = date_value.isoformat()
     return {
-        "date": file_date,
-        "pulled_at": pulled_at,
-        "section_status": status,
-        "problems": problems,
-        "fatal": [p for p in problems if not p.startswith("WARN")],
-    }
-
-
-# --------------------------------------------------------------------------- #
-# Summarizing
-# --------------------------------------------------------------------------- #
-
-def dig(obj: Any, *keys: Any, default: Any = None) -> Any:
-    """Nested get that survives missing keys, nulls, and short lists."""
-    cur = obj
-    for key in keys:
-        if cur is None:
-            return default
-        try:
-            cur = cur[key]
-        except (KeyError, IndexError, TypeError):
-            return default
-    return cur if cur is not None else default
-
-
-def summarize(archive: dict[str, Any]) -> dict[str, Any]:
-    stats = archive.get("stats") or {}
-    if isinstance(stats, dict) and "error" in stats:
-        stats = {}
-    sleep_dto = dig(archive, "sleep", "dailySleepDTO", default={}) or {}
-
-    sleep_seconds = sleep_dto.get("sleepTimeSeconds")
-    sleep_text = None
-    if isinstance(sleep_seconds, (int, float)):
-        sleep_text = f"{int(sleep_seconds) // 3600}h{(int(sleep_seconds) % 3600) // 60:02d}m"
-
-    weight_g = dig(archive, "body_composition", "dateWeightList", 0, "weight")
-    weight_lb = round(weight_g * KG_PER_GRAM * LB_PER_KG, 1) if weight_g else None
-
-    activities = archive.get("activities")
-    activity_rows = []
-    if isinstance(activities, list):
-        for act in activities:
-            if not isinstance(act, dict):
-                continue
-            dur = act.get("duration")
-            dist = act.get("distance")
-            activity_rows.append(
-                {
-                    "name": act.get("activityName"),
-                    "type": dig(act, "activityType", "typeKey"),
-                    "minutes": round(dur / 60, 0) if isinstance(dur, (int, float)) else None,
-                    "miles": round(dist * MI_PER_M, 2) if isinstance(dist, (int, float)) else None,
-                }
-            )
-
-    return {
-        "date": archive.get("date"),
-        "steps": stats.get("totalSteps"),
-        "step_goal": stats.get("dailyStepGoal"),
-        "resting_hr": stats.get("restingHeartRate"),
-        "max_hr": stats.get("maxHeartRate"),
-        "total_kcal": stats.get("totalKilocalories"),
-        "active_kcal": stats.get("activeKilocalories"),
-        "sleep": sleep_text,
-        "sleep_score": dig(sleep_dto, "sleepScores", "overall", "value"),
-        "sleep_qualifier": dig(sleep_dto, "sleepScores", "overall", "qualifierKey"),
-        "avg_stress": stats.get("averageStressLevel"),
-        "body_battery_wake": stats.get("bodyBatteryAtWakeTime"),
-        "body_battery_low": stats.get("bodyBatteryLowestValue"),
-        "avg_spo2": stats.get("averageSpo2"),
-        "vo2max": dig(archive, "max_metrics", 0, "generic", "vo2MaxValue"),
-        "weight_lb": weight_lb,
-        "intensity_minutes": (
-            (stats.get("moderateIntensityMinutes") or 0)
-            + 2 * (stats.get("vigorousIntensityMinutes") or 0)
+        "date": date_str,
+        "pulled_at": dt.datetime.now(LOCAL_ZONE).isoformat(),
+        "stats": safe_fetch_method(garmin, "get_stats", date_str),
+        "user_summary": safe_fetch_method(garmin, "get_user_summary", date_str),
+        "sleep": safe_fetch_method(garmin, "get_sleep_data", date_str),
+        "heart_rate": safe_fetch_method(garmin, "get_heart_rates", date_str),
+        "stress": safe_fetch_method(garmin, "get_stress_data", date_str),
+        "body_battery": safe_fetch_method(garmin, "get_body_battery", date_str),
+        "steps": safe_fetch_method(garmin, "get_steps_data", date_str),
+        "hrv": safe_fetch_method(garmin, "get_hrv_data", date_str),
+        "respiration": safe_fetch_method(garmin, "get_respiration_data", date_str),
+        "spo2": safe_fetch_method(garmin, "get_spo2_data", date_str),
+        "max_metrics": safe_fetch_method(garmin, "get_max_metrics", date_str),
+        "training_status": safe_fetch_method(
+            garmin, "get_training_status", date_str
         ),
-        "activities": activity_rows,
-        # Same-day pulls are partial; this shows how far the watch had synced.
-        "data_through_local": stats.get("wellnessEndTimeLocal"),
+        "training_readiness": safe_fetch_method(
+            garmin, "get_training_readiness", date_str
+        ),
+        "body_composition": safe_fetch_method(
+            garmin, "get_body_composition", date_str
+        ),
+        "weigh_ins": safe_fetch_method(
+            garmin, "get_weigh_ins", date_str, date_str
+        ),
+        "daily_weigh_ins": safe_fetch_method(
+            garmin, "get_daily_weigh_ins", date_str
+        ),
+        "activities": safe_fetch_method(
+            garmin, "get_activities_by_date", date_str, date_str
+        ),
     }
 
 
-def fmt(value: Any) -> str:
-    return "—" if value in (None, "") else str(value)
+def validate_payload(payload: dict[str, Any], expected_date: dt.date) -> list[str]:
+    errors: list[str] = []
+    if payload.get("date") != expected_date.isoformat():
+        errors.append("top-level date does not match filename date")
+
+    pulled_at = payload.get("pulled_at")
+    try:
+        parsed = dt.datetime.fromisoformat(str(pulled_at))
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            errors.append("pulled_at is not timezone-aware")
+    except ValueError:
+        errors.append("pulled_at is not valid ISO datetime")
+
+    for key in ENDPOINT_NAMES:
+        if key not in payload:
+            errors.append(f"missing endpoint section: {key}")
+    return errors
 
 
-def print_report(results: list[tuple[Path, dict[str, Any], dict[str, Any]]]) -> None:
-    rows = [
-        ("Steps", "steps"),
-        ("Resting HR", "resting_hr"),
-        ("Sleep", "sleep"),
-        ("Sleep score", "sleep_score"),
-        ("Avg stress", "avg_stress"),
-        ("Body batt wake", "body_battery_wake"),
-        ("Body batt low", "body_battery_low"),
-        ("Avg SpO2", "avg_spo2"),
-        ("Intensity min", "intensity_minutes"),
-        ("VO2max", "vo2max"),
-        ("Weight (lb)", "weight_lb"),
-        ("Active kcal", "active_kcal"),
-    ]
-    dates = [s["date"] for _, _, s in results]
-    width = max(14, *(len(d or "") for d in dates)) + 2
-
-    print("| Metric".ljust(18) + "".join(f"| {d:<{width - 2}}" for d in dates) + "|")
-    print("|" + "-" * 17 + ("|" + "-" * width) * len(dates) + "|")
-    for label, key in rows:
-        line = f"| {label:<16}"
-        for _, _, summary in results:
-            line += f"| {fmt(summary.get(key)):<{width - 2}} "
-        print(line + "|")
-
-    for path, validation, summary in results:
-        print(f"\n{summary['date']}  ({path.name})")
-        print(f"  pulled_at: {fmt(validation['pulled_at'])}")
-        print(f"  data through (local): {fmt(summary['data_through_local'])}")
-        for act in summary["activities"]:
-            print(
-                f"  activity: {fmt(act['name'])} [{fmt(act['type'])}] "
-                f"{fmt(act['minutes'])} min, {fmt(act['miles'])} mi"
-            )
-        unavailable = [
-            f"{n} ({s})"
-            for n, s in validation["section_status"].items()
-            if s != "present"
-        ]
-        print(f"  unavailable sections: {', '.join(unavailable) if unavailable else 'none'}")
-        for problem in validation["problems"]:
-            print(f"  ! {problem}")
+def write_atomic(path: Path, payload: dict[str, Any]) -> None:
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    try:
+        with temporary.open("w", encoding="utf-8", newline="\n") as stream:
+            json.dump(payload, stream, indent=2, ensure_ascii=False)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(path)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
 
 
-# --------------------------------------------------------------------------- #
+def existing_archive_is_valid(path: Path, expected_date: dt.date) -> bool:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return isinstance(payload, dict) and not validate_payload(payload, expected_date)
+
+
+def endpoint_failures(payload: dict[str, Any]) -> list[str]:
+    failures = []
+    for key in ENDPOINT_NAMES:
+        value = payload.get(key)
+        if isinstance(value, dict) and "error" in value:
+            failures.append(f"{key}: {value['error']}")
+    return failures
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("files", nargs="+", type=Path)
-    parser.add_argument("--json", action="store_true", help="emit JSON instead of a table")
-    parser.add_argument("--section", help="dump one raw section and exit")
-    parser.add_argument("--decode-to", type=Path, help="write decoded raw archives to DIR")
+    parser.add_argument("--token-dir", type=Path, default=DEFAULT_TOKEN_DIR)
+    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--days", type=int, default=2)
+    parser.add_argument("--start-date", type=parse_date)
+    parser.add_argument("--end-date", type=parse_date)
+    parser.add_argument("--force", action="store_true")
+    parser.add_argument("--delay-seconds", type=float, default=1.5)
     args = parser.parse_args()
 
-    results: list[tuple[Path, dict[str, Any], dict[str, Any]]] = []
-    for path in args.files:
-        archive = load_archive(path)
+    today = dt.datetime.now(LOCAL_ZONE).date()
+    if args.start_date or args.end_date:
+        if not (args.start_date and args.end_date):
+            parser.error("--start-date and --end-date must be supplied together")
+        start_date = args.start_date
+        end_date = args.end_date
+    else:
+        if args.days < 1:
+            parser.error("--days must be at least 1")
+        end_date = today
+        start_date = today - dt.timedelta(days=args.days - 1)
 
-        if args.decode_to:
-            args.decode_to.mkdir(parents=True, exist_ok=True)
-            out = args.decode_to / f"garmin_{archive['date']}.json"
-            out.write_text(json.dumps(archive, indent=2), encoding="utf-8")
-            print(f"wrote {out}", file=sys.stderr)
+    if start_date > end_date:
+        parser.error("start date must not be after end date")
+    if end_date > today:
+        parser.error("end date must not be in the future")
 
-        if args.section:
-            print(json.dumps(archive.get(args.section), indent=2)[:20000])
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"[{dt.datetime.now(LOCAL_ZONE).isoformat()}] Authenticating with Garmin...")
+    try:
+        garmin = Garmin()
+        garmin.login(tokenstore=str(args.token_dir))
+    except Exception as exc:
+        print(f"ERROR: Garmin authentication failed: {exc}", file=sys.stderr)
+        return 2
+
+    written = 0
+    skipped = 0
+    failed = 0
+    endpoint_error_count = 0
+
+    dates = list(date_range(start_date, end_date))
+    for index, date_value in enumerate(dates, start=1):
+        output_path = args.output_dir / f"garmin_{date_value.isoformat()}.json"
+
+        # Today and yesterday are refreshed because same-day archives may be partial.
+        refresh_recent = date_value >= today - dt.timedelta(days=1)
+        if output_path.exists():
+            existing_valid = existing_archive_is_valid(output_path, date_value)
+            if not args.force and not refresh_recent and existing_valid:
+                print(f"[{index}/{len(dates)}] {date_value}: existing stable file; skipped")
+                skipped += 1
+                continue
+            if not existing_valid:
+                print(
+                    f"[{index}/{len(dates)}] {date_value}: existing file is invalid; "
+                    "re-pulling"
+                )
+
+        print(f"[{index}/{len(dates)}] {date_value}: pulling")
+        payload = build_payload(garmin, date_value)
+        validation_errors = validate_payload(payload, date_value)
+        if validation_errors:
+            print(
+                f"ERROR: {date_value}: " + "; ".join(validation_errors),
+                file=sys.stderr,
+            )
+            failed += 1
             continue
 
-        results.append((path, validate(archive, path), summarize(archive)))
+        try:
+            write_atomic(output_path, payload)
+        except OSError as exc:
+            print(f"ERROR: {date_value}: write failed: {exc}", file=sys.stderr)
+            failed += 1
+            continue
 
-    if args.section:
-        return 0
-
-    results.sort(key=lambda r: r[2]["date"] or "")
-
-    if args.json:
+        failures = endpoint_failures(payload)
+        endpoint_error_count += len(failures)
+        written += 1
         print(
-            json.dumps(
-                [
-                    {"file": str(p), "validation": v, "summary": s}
-                    for p, v, s in results
-                ],
-                indent=2,
-            )
+            f"[{index}/{len(dates)}] {date_value}: wrote {output_path.name}"
+            + (f" with {len(failures)} endpoint error(s)" if failures else "")
         )
-    else:
-        print_report(results)
 
-    return 1 if any(v["fatal"] for _, v, _ in results) else 0
+        if index < len(dates) and args.delay_seconds > 0:
+            time.sleep(args.delay_seconds)
+
+    summary = {
+        "status": (
+            "complete"
+            if failed == 0 and endpoint_error_count == 0
+            else "partial"
+        ),
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "output_dir": str(args.output_dir),
+        "written": written,
+        "skipped": skipped,
+        "failed": failed,
+        "endpoint_errors": endpoint_error_count,
+    }
+    print(json.dumps(summary, indent=2))
+    return 0 if failed == 0 else 1
 
 
 if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except BrokenPipeError:  # e.g. piped into `head`
-        sys.stderr.close()
-        raise SystemExit(0)
+    raise SystemExit(main())
