@@ -5,32 +5,106 @@ description: Retrieve and validate Drive-synced daily Garmin health and activity
 
 # Pull Garmin Data
 
-Pull Garmin data from the Google Drive folder registered as `garmin-archive`.
+Retrieve raw Garmin daily archives from Google Drive. Google Drive is the normal
+retrieval source — no Garmin account export or live Garmin connection is needed.
+
+## Where the files live
+
+Folder `garmin-archive` — **Drive ID `1PRhI2z03g_HwHXNJpfjQ7ff5Ijnk0786`**
+(`Health/01 Raw Data/Garmin Daily Archive`), schema `garmin_mcp_daily_archive.v1`.
+
+Use that ID directly. Only re-resolve it through the Health Data Registry
+(`Health/00 System & Governance`) if a search against it returns nothing, which
+means the folder moved.
+
+Files are named `garmin_YYYY-MM-DD.json`, one per local date.
 
 ## Workflow
 
-1. Resolve `garmin-archive` through the Health Data Registry and verify the registered Google Drive folder.
-2. Determine the requested dates in `America/Los_Angeles`. Default to today and yesterday when the user asks for the latest data without a range.
-3. Find files named:
+1. **Pick dates** in `America/Los_Angeles`. Default to today and yesterday when
+   asked for "the latest" with no range given.
 
-```text
-garmin_YYYY-MM-DD.json
+2. **Find the files** with a single scoped search:
+
+   ```
+   parentId = '1PRhI2z03g_HwHXNJpfjQ7ff5Ijnk0786' and (title contains 'garmin_2026-07-27' or title contains 'garmin_2026-07-28')
+   ```
+
+3. **Pick the newest file per date** if duplicates exist. `pulled_at` is the
+   second line of every archive, so it appears in the search result's
+   `contentSnippet` — compare those and download only the winner. Do not
+   download every candidate just to read its timestamp. Drive `modifiedTime` is
+   a usable tiebreaker but `pulled_at` wins where the two disagree.
+
+4. **Decode and validate** with the bundled reader, which accepts the raw
+   archive, the Drive tool-result envelope, or the inner base64 object without
+   any manual unwrapping:
+
+   ```bash
+   python scripts/read_garmin_archive.py <downloaded files>
+   ```
+
+   It prints a side-by-side metric table, per-day activities, unavailable
+   sections, and any validation problems. Useful flags:
+
+   - `--json` — machine-readable summary for downstream skills
+   - `--section sleep` — dump one raw section verbatim
+   - `--decode-to DIR` — write the decoded raw archives to disk
+
+   Exit code is `1` when any file has a fatal problem, `0` otherwise.
+
+5. **Report** the files used, their `pulled_at` timestamps, unavailable sections,
+   endpoint failures, and any dates with no file at all.
+
+## Reading the payload
+
+Every archive carries these 17 sections: `stats`, `user_summary`, `sleep`,
+`heart_rate`, `stress`, `body_battery`, `steps`, `hrv`, `respiration`, `spo2`,
+`max_metrics`, `training_status`, `training_readiness`, `body_composition`,
+`weigh_ins`, `daily_weigh_ins`, `activities`. Preserve and return them raw —
+never reshape or rename them.
+
+**Distinguishing failures from real absences.** The collector wraps every
+endpoint call, so a failed call is stored as a dict with an `error` key and
+nothing else:
+
+```json
+"hrv": {"error": "HTTPError: 500 Server Error"}
 ```
 
-4. For each date, use the newest valid file by timezone-aware `pulled_at`. Require the filename date to match the top-level `date`.
-5. Preserve and return the raw sections, including `stats`, `user_summary`, `sleep`, `heart_rate`, `stress`, `body_battery`, `steps`, `hrv`, `respiration`, `spo2`, `max_metrics`, `training_status`, `training_readiness`, `body_composition`, `weigh_ins`, `daily_weigh_ins`, and `activities`.
-6. Treat endpoint errors, missing sections, empty payloads, null fields, and missing dates as unavailable data—not zero.
-7. Report the files used, their `pulled_at` timestamps, available sections, endpoint failures, and any missing dates.
+That — and only that — is an endpoint failure. Everything else is a real
+absence of data:
 
-Do not require a Garmin account export or a live Garmin connection. Google Drive is the normal retrieval source.
+| Shape | Meaning |
+|---|---|
+| `{"error": "..."}` | Endpoint failed. Report it explicitly. |
+| `[]` or `{}` | Endpoint succeeded, Garmin had nothing. Normal. |
+| `null` / key absent | Section missing. Report as a data problem. |
+| Nested `null` fields | Metric not recorded that day. Not zero. |
+
+Never render an unavailable value as `0`. `training_readiness` is routinely
+empty, and `max_metrics` is empty on days with no qualifying activity — neither
+is an error.
+
+**Partial same-day data.** Today's file is a snapshot, not a complete day.
+`stats.wellnessEndTimeLocal` shows how far the watch had synced; say so when
+reporting a same-day pull rather than presenting partial totals as final.
+
+**Known discrepancy.** Archives currently in Drive have a naive (offset-free)
+`pulled_at`, which the collector's own validator would flag. The reader treats
+this as a warning, not a failure. Do not re-pull over it.
 
 ## Local collector
 
-The included script is the upstream collector, not the normal ChatGPT retrieval path. Run it separately on a trusted local machine with `garminconnect` 0.3.5 or newer and the existing `~/.garminconnect` token store:
+`scripts/pull_garmin_data.py` is the upstream collector, not the retrieval path.
+Run it on a trusted local machine with `garminconnect` 0.3.5+ and the existing
+`~/.garminconnect` token store:
 
 ```bash
 python scripts/pull_garmin_data.py
-python scripts/pull_garmin_data.py --start-date 2024-07-29 --end-date 2026-07-28
+python scripts/pull_garmin_data.py --start-date 2026-07-01 --end-date 2026-07-28
 ```
 
-The script atomically writes the daily files. Google Drive Desktop or a separate `rclone copy` task syncs them to the registered Drive folder. Never commit the token store, temporary files, or raw Garmin archives to GitHub.
+It writes daily files atomically; Google Drive Desktop or a separate
+`rclone copy` syncs them to the registered folder. Never commit the token store,
+temporary files, or raw Garmin archives to GitHub.
