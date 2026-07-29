@@ -16,13 +16,31 @@ The private repository must be available through GitHub authentication.
 
 | Skill | Purpose |
 |---|---|
-| `archive-garmin-data` | Preserve complete rolling Garmin responses in append-only Drive snapshots. |
-| `import-garmin-account-export` | Validate and normalize historical Garmin export ZIPs. |
+| `archive-garmin-data` | Verify and use the cron-synced per-day Garmin JSON archive. |
+| `import-garmin-account-export` | Validate Garmin export ZIPs for supplemental gap-fill history. |
 | `garmin-pantry-meal-plan` | Build Garmin-aware weekly meal plans and grocery lists. |
 | `log-food` | Record and review actual food consumption. |
 | `reconcile-daily-food` | Find clear consumed meals that are missing from the food log. |
 | `recommend-next-meal` | Recommend a practical next meal from today's log, plan, and pantry. |
 | `update-pantry` | Update pantry inventory from receipts, lists, photos, and corrections. |
+
+## Garmin data architecture
+
+The primary Garmin source is the user's external `python-garminconnect` collector. It creates one raw file per local date:
+
+```text
+garmin_YYYY-MM-DD.json
+```
+
+Those files are synced into the Google Drive folder registered as `garmin-archive`. Skills read them directly and validate the filename date, top-level `date`, and `pulled_at` timestamp.
+
+Garmin source precedence is:
+
+1. Synced per-day JSON files in `garmin-archive`.
+2. A validated Garmin account export only to fill missing dates or datasets.
+3. The live Garmin connector only for explicit same-day freshness when the daily file has not synced.
+
+Missing files, empty responses, and endpoint errors remain unknown and are never converted to zero.
 
 ## Design
 
@@ -30,8 +48,8 @@ Google Drive remains the source of truth. Skills resolve authoritative assets th
 
 The repository deliberately keeps scripts only where they add real value:
 
-- raw Garmin response serialization;
-- Garmin export validation and normalization;
+- optional raw Garmin connector-response serialization;
+- Garmin export validation and cross-source normalization;
 - weekly meal-plan nutrition and grocery compilation;
 - Food Log row and nutrition compilation.
 
@@ -39,10 +57,12 @@ Reconciliation, pantry updates, and meal recommendations use direct, conservativ
 
 ```mermaid
 flowchart TD
-    A["User or automation"] --> B["Health skill"]
-    B --> C["Health Data Registry"]
-    C --> D["Drive source-of-truth asset"]
-    B --> E["Deterministic helper only when needed"]
+    A["Laptop Garmin collector"] --> B["Daily JSON files"]
+    B --> C["Google Drive garmin-archive"]
+    C --> D["Health skills"]
+    E["Account export"] -->|gap fill only| D
+    F["Live Garmin"] -->|same-day fallback| D
+    D --> G["Other registered Drive assets"]
 ```
 
 ## Validation
