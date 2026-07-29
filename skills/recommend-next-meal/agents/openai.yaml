@@ -1,0 +1,11 @@
+interface:
+  display_name: "Recommend Next Meal"
+  short_description: "Choose the next meal from today’s log and plan"
+  default_prompt: "Use $recommend-next-meal to recommend what I should eat next today."
+policy:
+  products:
+  - "chatgpt"
+  - "codex"
+  - "api"
+  - "atlas"
+  allow_implicit_invocation: true
