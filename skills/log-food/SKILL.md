@@ -1,61 +1,60 @@
 ---
 name: log-food
-description: Add, identify, review, correct, or remove food and drinks in the authoritative Google Drive Food Consumption Log. Use for meal logging, ambiguous food-name lookup and user selection, packaged foods, barcodes, package photos, restaurant meals, planned meals, daily totals, and corrections.
+description: Add, identify, review, correct, or remove consumed food and drinks in daily append-only JSONL logs stored in ChatGPT Library. Use for meal logging, ambiguous food lookup, packaged foods, barcodes, photos, restaurant meals, daily totals, and corrections.
 ---
 
 # Log Food
 
-Record what the user actually consumed in the dedicated Food Consumption Log. Do not change pantry inventory merely because food was eaten.
+Record actual consumption as one meal object per line in the daily ChatGPT Library file. Do not update pantry inventory merely because food was eaten.
 
-Read [references/sources-and-schema.md](references/sources-and-schema.md) for the registry identity and exact Food Log columns.
-Read [references/lookup-workflow.md](references/lookup-workflow.md) whenever a food or packaged product is not already an unambiguous exact match.
+Read [references/sources-and-schema.md](references/sources-and-schema.md) for the file location, schema, and append rules. Read [references/lookup-workflow.md](references/lookup-workflow.md) when a food is not already an unambiguous exact match.
 
 ## Add or correct food
 
 1. Resolve the consumed date and time in `America/Los_Angeles`.
-2. Resolve `food-log` through the live Health Data Registry and verify the dedicated spreadsheet, required tabs, and 27-column `Food Log` schema.
-3. Read existing entries for the target date before writing.
-4. Reuse a single high-confidence active prior Food Log match when the brand, product, flavor, serving basis, and the user's wording agree.
-5. Otherwise resolve nutrition in this order:
-   - a validated planned meal covering that date;
-   - the user's current package label or exact barcode;
-   - ranked lookup across prior Food Log rows, the preferred-food map, Open Food Facts, and the canonical nutrition CSV;
-   - current official restaurant nutrition for the user's actual configured order.
-6. For ranked lookup, run `scripts/food_lookup.py search` with two or more useful terms when available. Present the compact numbered results and have the user choose when the top result is not decisive. Run `scripts/food_lookup.py select` on the saved candidate file before compiling the entry. Never silently choose among materially different products.
-7. Ask one targeted question only when the food, quantity, calorie-dense addition, or configurable restaurant build cannot be identified safely. If the item is clear but nutrition is unavailable, log it with blank nutrients and a short unresolved note.
-8. Build one stable entry with one row per component. Preserve the user's wording and mark proxies or estimates clearly.
-9. For entries with nutrition, run:
+2. Search Library for the exact title `food-log-YYYY-MM-DD.jsonl` and prepare it locally. A missing file means an empty day.
+3. Run `scripts/food_log_jsonl.py read` and check current entries before writing.
+4. Reuse one high-confidence prior JSONL item when brand, product, flavor, serving basis, and user wording agree. Otherwise resolve nutrition from the validated plan, current label or barcode, ranked lookup, canonical nutrition CSV, or official restaurant nutrition.
+5. Ask one targeted question only when food identity, consumed quantity, or a calorie-dense addition cannot be resolved safely. Clear food with unresolved nutrition may be logged with null nutrients and a short note.
+6. Preserve the user's wording. Use explicit item quantities and deterministic conversions:
+   - mass is normalized to grams;
+   - US food volume is normalized to milliliters;
+   - count remains count;
+   - volume or count needs `density_g_per_ml`, `grams_per_unit`, or explicit sourced edible grams before CSV nutrition can be scaled.
+7. Compile the meal:
 
 ```bash
 python scripts/food_log_compiler.py entry.json \
   --nutrition-csv nutrition_corrected.csv \
-  --output compiled_entry.json
+  --output meal.json
 ```
 
-10. Write only to the `Food Log` tab:
-   - identical retry: no-op;
-   - correction: replace all rows for that Entry ID;
-   - new meal: append after the last populated row;
-   - removal: mark the entry Deleted unless permanent deletion is explicitly requested.
-11. Read the affected rows back and verify IDs, date, meal, quantities, nutrients, sources, and status. Check the affected Daily Summary date when practical.
+8. Append and validate:
+
+```bash
+python scripts/food_log_jsonl.py append \
+  food-log-YYYY-MM-DD.jsonl meal.json
+python scripts/food_log_jsonl.py validate \
+  food-log-YYYY-MM-DD.jsonl
+```
+
+9. Save the changed daily file back to the same Library path.
+
+An identical retry is a no-op. A changed meal with the same stable `entry_id` is a correction and must use `--correction`; it appends the next revision. Removal uses the `delete` command and appends a tombstone. Never rewrite prior lines.
 
 ## Review totals
 
-Read active Food Log rows for the requested dates, group components by Entry ID, and sum known nutrients. Blank nutrition is unknown, not zero. Use Daily Summary only when it agrees with the item rows.
+Prepare each requested daily file, run `food_log_jsonl.py read`, and use the returned current records and summary. The final revision for each `entry_id` wins; deleted entries are excluded. Null nutrition is unknown, not zero.
 
 ## Rules
 
-- Never write consumption rows to the pantry tracker.
-- Never invent a serving size, nutrition row, label value, restaurant configuration, or consumed quantity.
-- Never treat fuzzy lookup rank as confirmation. Exact barcode, exact current label, or an unambiguous high-confidence prior match may be automatic; otherwise require the user's numbered choice.
-- Prefer previously confirmed active Food Log matches over generic database results, but require the same brand, product line, flavor when relevant, and serving basis.
-- For photos, ask about uncertain oil, dressing, cheese, nuts, sauces, or other calorie-dense components before asking about low-calorie produce. Exclude unreported additions instead of silently estimating them.
-- Use dry weights only when the user or planned meal specifies dry weight.
-- Use drained weight for brined foods when appropriate and explicit edible-gram conversions for count items.
-- Do not log plans, recommendations, purchases, supplements, medications, or water as consumed food unless explicitly requested.
+- Never use a Google Sheet as a runtime food-log source or destination.
+- Never log plans, recommendations, purchases, medications, supplements, or water unless explicitly requested.
+- Never infer pantry changes from consumption.
+- Never invent a serving size, label value, restaurant configuration, conversion factor, or consumed quantity.
+- Fuzzy rank is not confirmation. Exact barcode, current label, or one unambiguous prior match may be automatic; otherwise require a numbered choice.
+- Use dry weights only when explicitly stated. Use drained weight for brined foods when appropriate.
 
 ## Response
 
-After a lookup, show at most eight numbered candidates with product, serving, calories, protein, source, and match note.
-
-After a write, report the meal, local time, calories, protein, carbohydrates, and fat, plus one concise note for any proxy, excluded addition, or unresolved nutrition.
+After a write, report the meal, local time, calories, protein, carbohydrates, and fat, plus one concise note for estimates, proxies, or unresolved nutrition.

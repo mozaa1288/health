@@ -151,6 +151,36 @@ def main() -> int:
     if raw_archives:
         fail(f"raw Garmin daily archives found: {raw_archives}")
 
+    food_logs = [
+        path.relative_to(ROOT)
+        for path in ROOT.rglob("food-log-????-??-??.jsonl")
+        if ".git" not in path.parts
+    ]
+    if food_logs:
+        fail(f"daily food logs found: {food_logs}")
+
+    stale_runtime_food_sheet_terms = (
+        "12Exzl-EZWxkiN0cd9XafE9R7a_MBoNiZuio46deANnQ",
+        "sheet_rows",
+        "Daily Summary",
+        "27-column",
+    )
+    stale_files: list[str] = []
+    for path in ROOT.rglob("*"):
+        if (
+            not path.is_file()
+            or ".git" in path.parts
+            or path.suffix not in {".md", ".py", ".json", ".yaml", ".yml"}
+        ):
+            continue
+        if path == Path(__file__).resolve():
+            continue
+        text = path.read_text(encoding="utf-8")
+        if any(term in text for term in stale_runtime_food_sheet_terms):
+            stale_files.append(str(path.relative_to(ROOT)))
+    if stale_files:
+        fail(f"stale runtime food-sheet references found: {sorted(stale_files)}")
+
     python_files = sorted(
         path for path in ROOT.rglob("*.py") if ".git" not in path.parts
     )

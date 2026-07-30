@@ -142,6 +142,17 @@ class Candidate:
 
 def read_json(path: Path) -> Any:
     try:
+        if path.suffix == ".jsonl":
+            records = [
+                json.loads(line)
+                for line in path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            current: dict[str, dict[str, Any]] = {}
+            for record in records:
+                if isinstance(record, dict) and record.get("entry_id"):
+                    current[str(record["entry_id"])] = record
+            return list(current.values())
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise LookupError(f"cannot read JSON {path}: {exc}") from exc
@@ -158,7 +169,34 @@ def object_rows(payload: Any) -> list[dict[str, Any]]:
 
 
 def history_candidates(path: Path) -> list[Candidate]:
-    rows = object_rows(read_json(path))
+    raw_rows = object_rows(read_json(path))
+    rows: list[dict[str, Any]] = []
+    for record in raw_rows:
+        if isinstance(record.get("items"), list):
+            if normalize(record.get("status", "Active")) != "active":
+                continue
+            for item in record["items"]:
+                if not isinstance(item, dict):
+                    continue
+                nutrition = item.get("nutrition") if isinstance(item.get("nutrition"), dict) else {}
+                rows.append({
+                    "Status": record.get("status"),
+                    "Confidence": item.get("confidence"),
+                    "Item": item.get("item"),
+                    "Description": record.get("description"),
+                    "Original Text": record.get("original_text"),
+                    "Quantity": item.get("quantity"),
+                    "Unit": item.get("unit"),
+                    "Edible Grams": item.get("edible_grams"),
+                    "Item ID": item.get("item_id"),
+                    "Entry ID": record.get("entry_id"),
+                    "Nutrition Row ID": item.get("nutrition_row_id"),
+                    "Source": item.get("source"),
+                    "Notes": item.get("note"),
+                    **nutrition,
+                })
+        else:
+            rows.append(record)
     best: dict[str, Candidate] = {}
     for row in rows:
         if normalize(row.get("Status", "Active")) not in {"", "active"}:

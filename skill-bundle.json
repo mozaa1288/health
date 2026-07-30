@@ -1,7 +1,7 @@
 {
   "schema": "health-skill-bundle/v1",
   "ported_at": "2026-07-26",
-  "updated_at": "2026-07-28",
+  "updated_at": "2026-07-29",
   "skills": [
     "pull-garmin-data",
     "plan-meals",
@@ -10,11 +10,12 @@
     "recommend-meal",
     "update-pantry"
   ],
-  "source_of_truth": "Google Drive Health Data Registry",
+  "source_of_truth": "ChatGPT Library daily food JSONL plus registered Google Drive health assets",
   "contains_health_records": false,
   "notes": [
-    "Skill code only; no Garmin archives, food-log rows, credentials, or tokens.",
+    "Skill code only; no Garmin archives, daily food JSONL, credentials, or tokens.",
     "The pull-garmin-data skill retrieves Drive-synced daily archives; its companion collector script runs locally.",
-    "Deterministic scripts remain only for Garmin collection, meal-plan compilation, and food-log compilation."
+    "Food consumption uses append-only food-log-YYYY-MM-DD.jsonl files in ChatGPT Library.",
+    "Deterministic scripts cover Garmin collection, meal-plan compilation, food-log compilation, unit conversion, JSONL access, and legacy CSV migration."
   ]
 }

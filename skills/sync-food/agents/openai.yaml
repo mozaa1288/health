@@ -1,7 +1,7 @@
 interface:
   display_name: Sync Food
   short_description: Find and log clear missing food entries
-  default_prompt: "Use $sync-food to sync today's consumption statements with my Food Log."
+  default_prompt: "Use $sync-food to sync today's consumption statements with my daily food log."
 policy:
   products:
   - chatgpt

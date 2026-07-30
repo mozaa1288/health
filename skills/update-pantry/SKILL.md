@@ -5,7 +5,7 @@ description: Update the registered Pantry & Fridge Inventory Tracker from receip
 
 # Update Pantry
 
-Update the live pantry tracker conservatively from what the user directly provides. Do not infer consumption from the Food Log.
+Update the live pantry tracker conservatively from what the user directly provides. Do not infer pantry changes from daily JSONL food logs.
 
 ## Workflow
 

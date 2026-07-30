@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile a food-log entry into validated Google Sheet rows."""
+"""Compile a raw meal entry into one validated JSONL meal record."""
 
 from __future__ import annotations
 
@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
+
+from unit_conversions import ConversionError, base_quantity, edible_grams
 
 NUTRIENT_COLUMNS = {
     "calories": ("calories",),
@@ -46,6 +48,7 @@ ALLOWED_SOURCES = {
     "Unresolved",
 }
 LOCAL_ZONE = ZoneInfo("America/Los_Angeles")
+SCHEMA_VERSION = "food_log.meal.v1"
 
 
 class CompileError(ValueError):
@@ -78,6 +81,11 @@ def clean(value: Decimal, places: int = 2) -> int | float:
     quant = Decimal("1").scaleb(-places)
     rounded = value.quantize(quant)
     return int(rounded) if rounded == rounded.to_integral() else float(rounded)
+
+
+def stable_id(prefix: str, *parts: Any) -> str:
+    payload = "\x1f".join(str(part or "").strip().casefold() for part in parts)
+    return f"{prefix}-{hashlib.sha256(payload.encode('utf-8')).hexdigest()[:16]}"
 
 
 @dataclass(frozen=True)
@@ -253,8 +261,10 @@ def compile_entry(entry: dict[str, Any], db: NutritionDatabase) -> dict[str, Any
     description = str(entry.get("description", "")).strip()
     original_text = str(entry.get("original_text", "")).strip()
     planned_meal_id = str(entry.get("planned_meal_id") or "").strip()
-    if not all((entry_id, logged_at, local_date, description, original_text)):
-        raise CompileError("entry requires ID, timestamp, local date, description, and original text")
+    if not all((logged_at, local_date, description, original_text)):
+        raise CompileError(
+            "entry requires timestamp, local date, description, and original text"
+        )
     try:
         parsed_time = datetime.fromisoformat(logged_at)
         parsed_date = datetime.strptime(local_date, "%Y-%m-%d").date()
@@ -272,11 +282,14 @@ def compile_entry(entry: dict[str, Any], db: NutritionDatabase) -> dict[str, Any
         raise CompileError("logged_at must represent local America/Los_Angeles time")
     if meal not in ALLOWED_MEALS:
         raise CompileError(f"meal must be one of {sorted(ALLOWED_MEALS)}")
+    if not entry_id:
+        entry_id = stable_id(
+            "meal", logged_at, meal, description, original_text, planned_meal_id
+        )
     items = entry.get("items")
     if not isinstance(items, list) or not items:
         raise CompileError("entry requires at least one item")
 
-    rows: list[list[Any]] = []
     normalized: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
     totals = {key: Decimal("0") for key in NUTRIENTS}
@@ -294,8 +307,10 @@ def compile_entry(entry: dict[str, Any], db: NutritionDatabase) -> dict[str, Any
         source = str(raw.get("source", "")).strip()
         source_url = str(raw.get("source_url", "")).strip()
         source_accessed = str(raw.get("source_accessed", "")).strip()
-        if not all((item_id, name, unit, confidence, source)):
-            raise CompileError("every item needs ID, name, unit, confidence, and source")
+        if not all((name, unit, confidence, source)):
+            raise CompileError("every item needs name, unit, confidence, and source")
+        if not item_id:
+            item_id = stable_id("item", name, quantity, unit)
         if item_id in seen_ids:
             raise CompileError(f"duplicate item_id {item_id!r}")
         seen_ids.add(item_id)
@@ -327,27 +342,37 @@ def compile_entry(entry: dict[str, Any], db: NutritionDatabase) -> dict[str, Any
             raise CompileError(
                 "source_url and source_accessed are reserved for Official Restaurant or Open Food Facts"
             )
-        nutrients, row_id, match_label = item_nutrition(raw, db)
-        grams_raw = raw.get("nutrition_grams_total")
-        grams = clean(decimal(grams_raw, "nutrition_grams_total"), 3) if grams_raw is not None else None
+        try:
+            base_amount, base_unit = base_quantity(quantity, unit)
+            grams_decimal = edible_grams(
+                quantity,
+                unit,
+                grams_per_unit=raw.get("grams_per_unit"),
+                density_g_per_ml=raw.get("density_g_per_ml"),
+                explicit_grams=raw.get("nutrition_grams_total"),
+            )
+        except ConversionError as exc:
+            raise CompileError(str(exc)) from exc
+        nutrition_input = dict(raw)
+        if grams_decimal is not None:
+            nutrition_input["nutrition_grams_total"] = str(grams_decimal)
+        nutrients, row_id, match_label = item_nutrition(nutrition_input, db)
+        grams = clean(grams_decimal, 3) if grams_decimal is not None else None
         note = str(raw.get("nutrition_match_note", "")).strip()
         if any(nutrients[key] is None for key in ("calories", "protein_g", "carbs_g", "fat_g")):
             incomplete.append(name)
         for key, value in nutrients.items():
             if value is not None:
                 totals[key] += decimal(value, key)
-        rows.append([
-            entry_id, item_id, logged_at, local_date, meal, description, name,
-            clean(quantity, 3), unit, grams, nutrients["calories"], nutrients["protein_g"],
-            nutrients["carbs_g"], nutrients["fat_g"], nutrients["fiber_g"],
-            nutrients["sodium_mg"], row_id, match_label, source, planned_meal_id,
-            confidence, original_text, note, updated, "Active", source_url, source_accessed,
-        ])
         normalized.append({
             "item_id": item_id,
             "item": name,
             "quantity": clean(quantity, 3),
             "unit": unit,
+            "base_quantity": {
+                "amount": clean(base_amount, 6),
+                "unit": base_unit,
+            },
             "edible_grams": grams,
             "nutrition": nutrients,
             "nutrition_row_id": row_id or None,
@@ -360,13 +385,18 @@ def compile_entry(entry: dict[str, Any], db: NutritionDatabase) -> dict[str, Any
         })
 
     return {
-        "status": "validated" if not incomplete else "logged_with_gaps",
+        "schema_version": SCHEMA_VERSION,
+        "record_type": "meal",
         "entry_id": entry_id,
+        "revision": 1,
+        "status": "Active",
         "logged_at": logged_at,
         "local_date": local_date,
         "meal": meal,
         "description": description,
+        "original_text": original_text,
         "planned_meal_id": planned_meal_id or None,
+        "last_updated": updated,
         "items": normalized,
         "totals": {
             key: (None if incomplete else clean(value))
@@ -380,7 +410,10 @@ def compile_entry(entry: dict[str, Any], db: NutritionDatabase) -> dict[str, Any
             "sha256": db.sha256,
             "row_count": db.row_count,
         },
-        "sheet_rows": rows,
+        "validation": {
+            "state": "validated" if not incomplete else "logged_with_gaps",
+            "nutrition_incomplete_for": incomplete,
+        },
     }
 
 
@@ -400,7 +433,13 @@ def main() -> int:
         database = load_database(args.nutrition_csv, config)
         compiled = compile_entry(entry, database)
         args.output.write_text(json.dumps(compiled, indent=2) + "\n", encoding="utf-8")
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError, CompileError) as exc:
+    except (
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        CompileError,
+        ConversionError,
+    ) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
     return 0
