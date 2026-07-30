@@ -43,7 +43,7 @@ Read this before anything else. It is the one rule in this skill with no excepti
    - If no safe match exists, ask one short question for material ambiguity. A clearly consumed item may be logged with null nutrition when only its nutrition is unresolved.
 4. Run `scripts/food_log_compiler.py` to create one `food_log.meal.v1` record with standardized units and nutrients.
 5. Run `scripts/food_log_jsonl.py append`, then `validate`. An identical retry is a no-op; corrections append the next revision; removals append a deleted revision.
-6. Upload a missing file or replace the existing file bytes in place. Verify the filename and parent folder.
+6. Upload a missing file or replace the existing file bytes in place. Verify the filename and parent folder. **Always write with `contentMimeType: text/plain` and `disableConversionToGoogleType: true`** — content stays JSONL, but `application/x-ndjson` is unreadable by `read_file_content`, forcing consumers into base64. Keep the `.jsonl` extension; the mime type is what matters.
 7. Report per the Food-Log Reporting Contract below.
 
 ## Record rules
