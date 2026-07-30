@@ -12,13 +12,14 @@ A version-controlled set of health workflows backed by governed Google Drive ass
 
 ## Skills
 
-The repository contains exactly six verb–object skills:
+The repository contains exactly seven verb–object skills:
 
 | Skill | Purpose |
 |---|---|
 | `pull-garmin-data` | Retrieve Drive-synced daily Garmin archives. |
 | `plan-meals` | Build, revise, and retrieve weekly meal plans and grocery lists. |
 | `log-food` | Record and review food that was actually consumed. |
+| `list-food` | Read back a day's food log and nutrition totals without modifying it. |
 | `sync-food` | Add clear consumed meals missing from the daily JSONL log. |
 | `recommend-meal` | Recommend a practical next meal or snack. |
 | `update-pantry` | Update pantry inventory from receipts, lists, photos, or corrections. |

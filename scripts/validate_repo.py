@@ -15,6 +15,7 @@ SKILLS = (
     "pull-garmin-data",
     "plan-meals",
     "log-food",
+    "list-food",
     "sync-food",
     "recommend-meal",
     "update-pantry",

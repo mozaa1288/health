@@ -1,0 +1,11 @@
+interface:
+  display_name: "List Food"
+  short_description: "Show a daily food log and nutrition totals"
+  default_prompt: "Use $list-food to show what I have eaten today."
+policy:
+  products:
+  - "chatgpt"
+  - "codex"
+  - "api"
+  - "atlas"
+  allow_implicit_invocation: true
