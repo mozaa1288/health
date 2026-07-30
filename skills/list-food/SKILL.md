@@ -14,9 +14,11 @@ File: `food-log-YYYY-MM-DD.jsonl`
 
 1. Resolve the date in `America/Los_Angeles`. Default: today.
 2. `search_files` the folder for `food-log-<date>.jsonl`, then `download_file_content`. No file means an empty day — say so and stop.
-3. Decode the base64 body and parse one JSON record per line.
+3. Read and interpret the base64 body directly — decode it and go through the JSON records line by line yourself. Don't write or call a script for this.
 4. Revision resolution: for each `entry_id` keep only the highest `revision`; drop it entirely if that revision has `status == "Deleted"`.
 5. Render the table below. Sum from unrounded `totals`; round only for display.
+
+For multi-day pulls (e.g. "last 20 days"), `scripts/decode_food_log.py` can do steps 3–4 per file (stdin or `--base64-file`) — worth it once volume makes a missed correction/deletion likely. For a single day, read it straight.
 
 ## Output
 
