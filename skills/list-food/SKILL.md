@@ -13,12 +13,12 @@ File: `food-log-YYYY-MM-DD.jsonl`
 ## Algorithm
 
 1. Resolve the date in `America/Los_Angeles`. Default: today.
-2. `search_files` the folder for `food-log-<date>.jsonl`, then `download_file_content`. No file means an empty day — say so and stop.
-3. Read and interpret the base64 body directly — decode it and go through the JSON records line by line yourself. Don't write or call a script for this.
-4. Revision resolution: for each `entry_id` keep only the highest `revision`; drop it entirely if that revision has `status == "Deleted"`.
-5. Render the table below. Sum from unrounded `totals`; round only for display.
-
-For multi-day pulls (e.g. "last 20 days"), `scripts/decode_food_log.py` can do steps 3–4 per file (stdin or `--base64-file`) — worth it once volume makes a missed correction/deletion likely. For a single day, read it straight.
+2. `search_files` the folder for `food-log-<date>.jsonl`. No file means an empty day — say so and stop. Then fetch it:
+   - **Try `read_file_content` first.** Logs written as `text/plain` come back as plain text, no base64. It markdown-escapes the body (`entry\_id`, `protein\_g`, `\[`) — read straight through that; never hand it to a JSON parser.
+   - **Fall back to `download_file_content`** if that errors on mime type. Legacy logs are `application/x-ndjson` and only work this way, returning base64.
+3. Read and interpret the body yourself, record by record. Do **not** write it to a file, pipe it into bash, or call a script — a real log runs several KB and will truncate or break shell quoting. There is no channel between Drive output and bash except retyping it, and retyping is the failure.
+4. Revision resolution: per `entry_id` keep only the highest `revision`; drop the entry entirely if that revision has `status == "Deleted"`.
+5. Render the table below. Sum unrounded per-meal `totals`; round once for display.
 
 ## Output
 
