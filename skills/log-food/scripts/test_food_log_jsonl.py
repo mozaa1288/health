@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import csv
 import json
 import tempfile
 import unittest
@@ -16,7 +15,6 @@ from food_log_jsonl import (
     read_records,
     summarize,
 )
-from migrate_food_log_csv import LEGACY_HEADERS, migrate
 from unit_conversions import ConversionError, base_quantity, edible_grams
 
 
@@ -143,48 +141,6 @@ class FoodLogJsonlTests(unittest.TestCase):
             self.assertEqual(result["items"][0]["base_quantity"], {"amount": 30, "unit": "ml"})
             self.assertEqual(result["items"][0]["edible_grams"], 20)
             self.assertEqual(result["totals"]["calories"], 97.2)
-
-    def test_legacy_csv_migration(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            source = root / "legacy.csv"
-            row = {header: "" for header in LEGACY_HEADERS}
-            row.update(
-                {
-                    "Entry ID": "legacy-meal",
-                    "Item ID": "legacy-item",
-                    "Logged At": "2026-07-28T12:00:00-07:00",
-                    "Local Date": "2026-07-28",
-                    "Meal": "Lunch",
-                    "Description": "Legacy lunch",
-                    "Item": "Beans",
-                    "Quantity": "100",
-                    "Unit": "g",
-                    "Edible Grams": "100",
-                    "Calories": "120",
-                    "Protein g": "8",
-                    "Carbs g": "20",
-                    "Fat g": "1",
-                    "Fiber g": "7",
-                    "Sodium mg": "10",
-                    "Nutrition Row ID": "2",
-                    "Nutrition Match": "Exact",
-                    "Source": "Canonical CSV",
-                    "Confidence": "High",
-                    "Original Text": "I had beans",
-                    "Last Updated": "2026-07-28T12:10:00-07:00",
-                    "Status": "Active",
-                }
-            )
-            with source.open("w", encoding="utf-8", newline="") as handle:
-                writer = csv.DictWriter(handle, fieldnames=LEGACY_HEADERS)
-                writer.writeheader()
-                writer.writerow(row)
-            result = migrate(source, root / "out")
-            self.assertEqual(result, {"files_written": 1, "records_written": 1})
-            migrated = read_records(root / "out" / "food-log-2026-07-28.jsonl")
-            self.assertEqual(migrated[0]["entry_id"], "legacy-meal")
-
 
 if __name__ == "__main__":
     unittest.main()

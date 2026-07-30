@@ -31,7 +31,7 @@ Food consumption uses one append-only file per local date in `Health/03 Operatio
 food-log-YYYY-MM-DD.jsonl
 ```
 
-Each JSONL line is one complete meal revision. Stable entry IDs make identical retries no-ops; corrections and deletions append another revision, and the last revision wins. The legacy food spreadsheet is migration input only and is not used at runtime.
+Each JSONL line is one complete meal revision. Stable entry IDs make identical retries no-ops; corrections and deletions append another revision, and the last revision wins.
 
 Google Drive is authoritative for food logs, Garmin archives, pantry inventory, weekly plans, nutrition lookup assets, and food evidence. Food logs always use the hard-coded folder `Health/03 Operational Trackers/Food Logs` (`13E1t9q2JQrCliQyO8xecHNcDdUyhMjaI`); other assets resolve through the Health Data Registry.
 
@@ -53,7 +53,7 @@ Scripts remain only where deterministic code provides clear value:
 
 - local Garmin collection and atomic archive writing;
 - meal-plan nutrition, pantry allocation, and grocery compilation;
-- food-log nutrition compilation, deterministic unit conversion, JSONL append/read/validation, and legacy CSV migration.
+- food-log nutrition compilation, deterministic unit conversion, lookup, and JSONL append/read/validation.
 
 Food synchronization, pantry updates, and meal recommendations use direct, conservative workflows instead of intermediate planning or ranking scripts.
 
@@ -67,4 +67,4 @@ The validator checks the exact skill catalogs and folders, `SKILL.md` names, rel
 
 ## Privacy
 
-Never commit Garmin credentials, tokens, cookies, daily Garmin archives, `food-log-YYYY-MM-DD.jsonl` files, legacy food-log exports, receipt images, or other health records. This repository is for workflow instructions, code, schemas, and non-secret identifiers only.
+Never commit Garmin credentials, tokens, cookies, daily Garmin archives, `food-log-YYYY-MM-DD.jsonl` files, receipt images, or other health records. This repository is for workflow instructions, code, schemas, and non-secret identifiers only.

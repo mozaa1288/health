@@ -12,4 +12,4 @@ Google Drive is the source of truth. Food consumption uses one append-only `food
 
 ## Source hygiene
 
-The port is checked for credentials and generated artifacts. Garmin credentials stay in the local `~/.garminconnect` token store and must never be committed. Daily Garmin archives, daily food JSONL, migration exports, and evidence files are also excluded.
+The port is checked for credentials and generated artifacts. Garmin credentials stay in the local `~/.garminconnect` token store and must never be committed. Daily Garmin archives, daily food JSONL, and evidence files are also excluded.
