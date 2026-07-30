@@ -2,13 +2,17 @@
 
 ## Canonical storage
 
-Food consumption is stored only in ChatGPT Library:
+Food consumption is stored in Google Drive:
 
 ```text
-food-log-YYYY-MM-DD.jsonl
+Health/03 Operational Trackers/Food Logs/food-log-YYYY-MM-DD.jsonl
 ```
 
-Each local date in `America/Los_Angeles` has one file and each line is one complete meal revision. Use the Library workflow to prepare the file locally, run the bundled scripts, then save the updated file back to the same path. Do not use the former spreadsheet at runtime. It is a legacy migration input only.
+Folder ID: `13E1t9q2JQrCliQyO8xecHNcDdUyhMjaI`.
+
+Each local date in `America/Los_Angeles` has one file and each line is one complete meal revision. List the folder, fetch the exact daily filename, run the bundled scripts locally, then upload a new file or replace the existing file bytes in place. Do not use the former spreadsheet at runtime. It is a legacy migration input only.
+
+The user granted standing authorization on 2026-07-29 to create or replace daily food-log JSONL files and the migration manifest inside this exact folder without repeated confirmation. This does not authorize deletion, sharing, permission changes, moving files, or unrelated uploads.
 
 Nutrition lookup assets, weekly plans, pantry data, and food evidence remain separate. Resolve those through their existing workflows only when needed.
 
@@ -125,4 +129,4 @@ The old consumption spreadsheet is read only for the one-time historical migrati
 python scripts/migrate_food_log_csv.py legacy_food_log.csv migrated/
 ```
 
-Validate every generated daily file before saving it back under the same exact Library filename. Do not keep the spreadsheet synchronized after migration.
+Validate every generated daily file before saving it back under the same exact Drive filename and verify its parent folder. Do not keep the spreadsheet synchronized after migration.

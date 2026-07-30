@@ -1,6 +1,6 @@
 # Personal Health Automation Skills
 
-A version-controlled set of health workflows using ChatGPT Library for daily food logs and Google Drive for the remaining registered health assets.
+A version-controlled set of health workflows backed by governed Google Drive assets.
 
 ## Install in Claude Code
 
@@ -25,7 +25,7 @@ The repository contains exactly six verb–object skills:
 
 ## Data architecture
 
-Food consumption uses one append-only ChatGPT Library file per local date:
+Food consumption uses one append-only file per local date in `Health/03 Operational Trackers/Food Logs`:
 
 ```text
 food-log-YYYY-MM-DD.jsonl
@@ -33,7 +33,7 @@ food-log-YYYY-MM-DD.jsonl
 
 Each JSONL line is one complete meal revision. Stable entry IDs make identical retries no-ops; corrections and deletions append another revision, and the last revision wins. The legacy food spreadsheet is migration input only and is not used at runtime.
 
-Google Drive remains authoritative for Garmin archives, pantry inventory, weekly plans, nutrition lookup assets, and food evidence. Those skills resolve Drive assets through the Health Data Registry.
+Google Drive is authoritative for food logs, Garmin archives, pantry inventory, weekly plans, nutrition lookup assets, and food evidence. Food logs always use the hard-coded folder `Health/03 Operational Trackers/Food Logs` (`13E1t9q2JQrCliQyO8xecHNcDdUyhMjaI`); other assets resolve through the Health Data Registry.
 
 The companion collector script runs separately on a trusted machine with a maintained `garminconnect` release (version 0.3.5 or newer) and the existing `~/.garminconnect` token store. The token store must remain readable only by the local user. By default the collector refreshes today and yesterday, and it can backfill an explicit date range. It atomically writes one file per local date:
 

@@ -8,7 +8,7 @@ The bundle contains six verb–object skills: `pull-garmin-data`, `plan-meals`, 
 
 ## Data boundary
 
-ChatGPT Library is the sole food-log source of truth, with one append-only `food-log-YYYY-MM-DD.jsonl` file per local date. Google Drive remains authoritative for Garmin archives, pantry inventory, weekly plans, nutrition lookup assets, and food evidence. This repository contains only skill instructions, deterministic scripts, schemas, and tests; it does not contain personal daily logs or other health records.
+Google Drive is the source of truth. Food consumption uses one append-only `food-log-YYYY-MM-DD.jsonl` file per local date in `Health/03 Operational Trackers/Food Logs`; Garmin archives, pantry inventory, weekly plans, nutrition lookup assets, and food evidence remain Drive-backed. This repository contains only skill instructions, deterministic scripts, schemas, and tests; it does not contain personal daily logs or other health records.
 
 ## Source hygiene
 

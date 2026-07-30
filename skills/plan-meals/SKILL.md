@@ -27,7 +27,7 @@ Build a practical vegetarian weekly plan from the synced daily Garmin archive, c
    - treat endpoint errors, missing sections, empty payloads, null fields, and missing dates as unavailable—not zero;
    - treat the current local day as partial and exclude it from complete-day averages unless clearly labeled.
 4. Do not require any other Garmin data source for normal meal planning. If a daily file or section is unavailable, disclose the gap and continue using only the available evidence.
-5. When recent actual intake or plan adherence is relevant, search Library for the exact `food-log-YYYY-MM-DD.jsonl` titles, prepare those files, and use only each entry's final active revision. Never read the legacy consumption spreadsheet.
+5. When recent actual intake or plan adherence is relevant, read the exact `food-log-YYYY-MM-DD.jsonl` files directly from Drive folder `13E1t9q2JQrCliQyO8xecHNcDdUyhMjaI` and use only each entry's final active revision. Never read the legacy consumption spreadsheet.
 6. Read the pantry's populated `Pantry Inventory`, `Weekly Ledger`, and `Rules & Lists` ranges.
 7. Count inventory only when it is:
    - currently confirmed and recently verified;

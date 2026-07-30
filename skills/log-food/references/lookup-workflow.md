@@ -4,7 +4,7 @@ Use ranked lookup when wording can identify more than one product or canonical f
 
 ## Prepare sources
 
-- One or more recent `food-log-YYYY-MM-DD.jsonl` files from ChatGPT Library for confirmed history.
+- One or more recent `food-log-YYYY-MM-DD.jsonl` files from Google Drive folder `13E1t9q2JQrCliQyO8xecHNcDdUyhMjaI` for confirmed history.
 - The current preferred-food map.
 - The canonical nutrition CSV.
 - The compact Open Food Facts index when packaged-food lookup is relevant.

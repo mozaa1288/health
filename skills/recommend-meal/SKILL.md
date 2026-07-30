@@ -1,6 +1,6 @@
 ---
 name: recommend-meal
-description: Recommend the next practical meal or snack using today's Library JSONL food log, current validated meal plan, and available pantry items.
+description: Recommend the next practical meal or snack using today's Google Drive JSONL food log, current validated meal plan, and available pantry items.
 ---
 
 # Recommend Meal
@@ -9,10 +9,10 @@ Give one practical recommendation for the user's next meal or snack. This workfl
 
 ## Where the data lives
 
-Today's consumption comes from ChatGPT Library:
+Today's consumption comes directly from the hard-coded Google Drive Food Logs folder:
 
 ```text
-food-log-YYYY-MM-DD.jsonl
+Health/03 Operational Trackers/Food Logs/food-log-YYYY-MM-DD.jsonl
 ```
 
 Resolve the pantry tracker and weekly plans through their existing registry workflow.
@@ -20,7 +20,7 @@ Resolve the pantry tracker and weekly plans through their existing registry work
 ## Workflow
 
 1. Resolve the current date and time in `America/Los_Angeles`.
-2. Prepare today's Library JSONL file and run `../log-food/scripts/food_log_jsonl.py read`. A missing file means no meals are logged yet.
+2. Fetch today's exact JSONL filename from Drive folder `13E1t9q2JQrCliQyO8xecHNcDdUyhMjaI` and run `../log-food/scripts/food_log_jsonl.py read`. A missing file means no meals are logged yet.
 3. Read the validated weekly plan covering today (the `*_compiled_plan.json` for the relevant week has per-meal macros including sodium).
 4. Read enough of the registered pantry tracker to confirm likely ingredient availability.
 5. Compare today's known intake with the planned meals and daily totals.
