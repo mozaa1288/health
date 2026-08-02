@@ -19,6 +19,7 @@ SKILLS = (
     "sync-food",
     "recommend-meal",
     "update-pantry",
+    "plot-health-data",
 )
 MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 BACKTICK_RELATIVE_PATH = re.compile(r"`((?:\.\.?/)+[^`\s]+)`")
