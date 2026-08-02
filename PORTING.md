@@ -4,7 +4,7 @@ This repository mirrors the personal ChatGPT health automation skills as readabl
 
 ## Scope
 
-The bundle contains six verb–object skills: `pull-garmin-data`, `plan-meals`, `log-food`, `sync-food`, `recommend-meal`, and `update-pantry`.
+The bundle contains eight verb–object skills: `pull-garmin-data`, `plan-meals`, `log-food`, `list-food`, `sync-food`, `recommend-meal`, `update-pantry`, and `plot-health-data`.
 
 ## Data boundary
 

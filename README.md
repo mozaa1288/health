@@ -12,7 +12,7 @@ A version-controlled set of health workflows backed by governed Google Drive ass
 
 ## Skills
 
-The repository contains exactly seven verb–object skills:
+The repository contains exactly eight verb–object skills:
 
 | Skill | Purpose |
 |---|---|
@@ -23,6 +23,7 @@ The repository contains exactly seven verb–object skills:
 | `sync-food` | Add clear consumed meals missing from the daily JSONL log. |
 | `recommend-meal` | Recommend a practical next meal or snack. |
 | `update-pantry` | Update pantry inventory from receipts, lists, photos, or corrections. |
+| `plot-health-data` | Plot nutrition, energy burn, movement, exercise, and recovery trends. |
 
 ## Data architecture
 
@@ -55,6 +56,7 @@ Scripts remain only where deterministic code provides clear value:
 - local Garmin collection and atomic archive writing;
 - meal-plan nutrition, pantry allocation, and grocery compilation;
 - food-log nutrition compilation, deterministic unit conversion, lookup, and JSONL append/read/validation.
+- health-trend aggregation and responsive in-chat visualization.
 
 Food synchronization, pantry updates, and meal recommendations use direct, conservative workflows instead of intermediate planning or ranking scripts.
 

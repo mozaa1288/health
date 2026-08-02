@@ -1,0 +1,14 @@
+interface:
+  display_name: Plot Health Data
+  short_description: Plot nutrition, energy burn, activity, and recovery
+  default_prompt: Use $plot-health-data to plot my health data for the last seven
+    days.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
